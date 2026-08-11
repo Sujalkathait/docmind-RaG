@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>PDF RAG Assistant</title>
+
+    <!-- Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- HTML sanitization -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <!-- Background glow -->
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+
+    <!-- Main Application -->
+    <main class="app">
+      <!-- ================================
+             HEADER
+        ================================= -->
+
+      <header class="header">
+        <!-- Logo -->
+
+        <div class="logo">
+          <div class="logo-icon">✦</div>
+
+          <div>
+            <h1>PDF RAG Assistant</h1>
+
+            <p>Ask anything from your document</p>
+          </div>
+        </div>
+
+        <!-- Header Actions -->
+
+        <div class="header-actions">
+          <!-- Upload Button -->
+
+          <button id="uploadButton" class="upload-button" type="button">
+            📄 Upload PDF
+          </button>
+
+          <!-- Hidden File Input -->
+
+          <input
+            type="file"
+            id="pdfInput"
+            accept=".pdf,application/pdf"
+            hidden
+          />
+
+          <!-- AI Status -->
+
+          <div class="status">
+            <span class="status-dot"></span>
+
+            AI Online
+          </div>
+
+          <!-- Clear Chat -->
+
+          <button id="clearButton" class="clear-button" type="button">
+            Clear
+          </button>
+        </div>
+      </header>
+
+      <!-- ================================
+             CHAT AREA
+        ================================= -->
+
+      <section class="chat-container" id="chatContainer">
+        <!-- Document Status -->
+
+        <div id="documentStatus" class="document-status hidden">
+          <div class="document-icon">📄</div>
+
+          <div class="document-info">
+            <strong id="documentName"> No document </strong>
+
+            <span id="documentMessage"> Upload a PDF to start </span>
+          </div>
+        </div>
+
+        <!-- Welcome -->
+
+        <div class="welcome">
+          <div class="welcome-icon">🤖</div>
+
+          <h2>Welcome! 👋</h2>
+
+          <p>
+            Upload a PDF and ask me anything about your document. I'll find the
+            relevant information and generate an answer.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================================
+             INPUT AREA
+        ================================= -->
+
+      <section class="input-area">
+        <div class="input-wrapper">
+          <!-- Question -->
+
+          <textarea
+            id="questionInput"
+            placeholder="Ask a question about your document..."
+            rows="1"
+          ></textarea>
+
+          <!-- Send -->
+
+          <button id="sendButton" type="button">
+            <span> ➤ </span>
+          </button>
+        </div>
+
+        <p class="hint">Powered by FastAPI • ChromaDB • Gemini</p>
+      </section>
+    </main>
+
+    <!-- JavaScript -->
+
+    <script src="script.js"></script>
+  </body>
+</html>
