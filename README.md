@@ -11,6 +11,43 @@
 
 ---
 
+## ⚡ Quick Summary & Model Specifications
+
+| Component | Specification / Details |
+| :--- | :--- |
+| **LLM Model** | **Qwen 2.5 (3 Billion parameters)** |
+| **Creator** | Alibaba Cloud (Qwen Team) |
+| **Model Source** | Hugging Face (`Qwen/Qwen2.5-3B-Instruct-GGUF`) |
+| **Model Format** | **GGUF** (`q4_k_m` 4-bit quantization, ~2.1 GB) |
+| **Inference Engine** | Direct local Python execution via **`llama-cpp-python`** (No Ollama background service required) |
+| **Embedding Model** | **BGE-small-en-v1.5** (384-dimensional dense vectors) |
+| **Vector Database** | **ChromaDB** (Persistent on disk in `chroma_db/`) |
+| **Frontend** | Streamlit + Custom Glassmorphism UI + Mermaid.js Flowchart Engine |
+| **Privacy & Cost** | **100% Offline, Zero API Keys, 100% Free & Private** |
+
+### 🛠️ Quick Commands Cheat Sheet
+
+```powershell
+# 1. Run the Application
+python run.py
+
+# 2. Check if Model is Present
+Get-Item models\qwen2.5-3b-instruct-q4_k_m.gguf
+
+# 3. Delete Model (Free 2.1 GB disk space)
+Remove-Item models\qwen2.5-3b-instruct-q4_k_m.gguf
+
+# 4. Download / Restore Model
+python download_model.py
+
+# 5. Push Changes to GitHub
+git add .
+git commit -m "Update project summary"
+git push origin main
+```
+
+---
+
 ## 🏛️ System Architecture Overview
 
 ![DocMind Local PDF RAG Architecture](assets/docmind_rag_overview.png)
