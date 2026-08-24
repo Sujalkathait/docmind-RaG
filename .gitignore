@@ -1,16 +1,77 @@
-# Environment variables / API keys
+# ===================================
+# Environment & Secrets (NEVER COMMIT)
+# ===================================
 .env
+*.env
+*.pem
+*.key
+secrets.json
 
-# Python cache
-__pycache__/
-*.pyc
-
-# Virtual environment
-venv/
-.venv/
-
-# Local ChromaDB database
+# ===================================
+# Local User Data & Vector Database
+# ===================================
 chroma_db/
+*.chroma
 
-# VS Code settings
+# PDF storage (ignore files, keep folder)
+pdfs/*
+!pdfs/.gitkeep
+
+# Chat History (ignore session files, keep folder)
+chat_history/*
+!chat_history/.gitkeep
+
+# ===================================
+# Large GGUF Model Files (> 2GB)
+# ===================================
+models/*
+!models/.gitkeep
+*.gguf
+*.bin
+
+# ===================================
+# Python & Virtual Environments
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ===================================
+# Temporary & Log Files
+# ===================================
+*.tmp
+*.log
+*.bak
+*.swp
+
+# ===================================
+# IDE, OS & System Files
+# ===================================
 .vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+.DS_Store
+Thumbs.db
+desktop.ini

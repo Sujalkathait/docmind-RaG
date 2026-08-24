@@ -1,8 +1,6 @@
-google-genai
-python-dotenv
-pypdf
+PyMuPDF
+sentence-transformers
+llama-cpp-python
+streamlit
 langchain-text-splitters
 chromadb
-fastapi
-uvicorn
-python-multipart

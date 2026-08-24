@@ -1,0 +1,1 @@
+"""DocMind RAG Core Package"""
