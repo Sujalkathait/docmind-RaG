@@ -94,7 +94,7 @@ RAG PDF CHATBOT/
 
 ## 🖥️ How the Frontend Works
 
-![DocMind UI & Dry Run Interactive Workflow](assets/ui_dry_run_workflow.png)
+![DocMind Streamlit Live UI](assets/frontend_ui.png)
 
 The frontend is built with **Streamlit** and augmented with custom **HTML5/CSS3 glassmorphism design** and **interactive JavaScript components**:
 
@@ -107,14 +107,17 @@ The frontend is built with **Streamlit** and augmented with custom **HTML5/CSS3 
    - Dynamic multiselect dropdown allowing queries across `"All"` documents or scoped to specific subjects (e.g. `OS` + `DBMS`).
 3. **Real-Time Token Streaming**:
    - Utilizes Python generator streaming to render response tokens in real-time with an animated cursor (`▌`), avoiding long waiting times.
-4. **Interactive Mermaid.js Diagram Engine**:
+4. **Message Action Bar & Timestamps**:
+   - 📋 **Copy**: Direct clipboard copy with instant visual feedback (`Copied!`).
+   - 👍 **Like** & 👎 **Dislike**: Instant feedback rating on assistant explanations.
+   - 🕒 **Timestamps**: Real-time display of message delivery time (e.g., `🕒 12:18 PM`).
+   - 📎 **Metadata Badges**: Cites source document names, retrieval folder scopes, and generation latency (`⏱️ 0.8s`).
+5. **Interactive Mermaid.js Diagram Engine**:
    - Auto-detects and sanitizes LLM-generated Mermaid diagrams.
    - Embeds a custom HTML5 canvas component featuring:
      - 💾 **Save PNG**: High-resolution 2x DPI canvas export directly to local downloads.
      - 📥 **Save SVG**: Lossless vector graphic download.
      - 📋 **Copy Code**: One-click Mermaid syntax copying to clipboard.
-5. **Raw Markdown Copying & Execution Metadata**:
-   - Displays execution badges (`📎 Sources`, `⏱️ Execution Time (s)`, `📁 Folder Scope`) and provides a raw Markdown copy block.
 
 ---
 
