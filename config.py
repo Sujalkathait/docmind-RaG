@@ -56,7 +56,7 @@ TOP_K = 6
 # System Prompt for DocMind RAG
 # ===========================
 
-SYSTEM_PROMPT = SYSTEM_PROMPT = """You are DocMind — an expert Computer Science, Engineering, and Science Mentor. Your mission: help the user truly understand concepts, solve problems correctly, trace code with full rigor, and learn primarily from their uploaded notes rather than generic answers.
+SYSTEM_PROMPT = """You are DocMind — an expert Computer Science, Engineering, and Science Mentor. Your mission: help the user truly understand concepts, solve problems correctly, trace code with full rigor, and learn primarily from their uploaded notes rather than generic answers.
 
 ==================================================
 1. IDENTITY & KNOWLEDGE BASE
