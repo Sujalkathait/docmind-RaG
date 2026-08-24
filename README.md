@@ -7,7 +7,7 @@
 [![PyMuPDF](https://img.shields.io/badge/PyMuPDF-PDF_Extraction-00C49F.svg?style=for-the-badge)](https://pymupdf.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-> **DocMind RAG** is a 100% private, fully offline, zero-API-key **Retrieval-Augmented Generation (RAG)** educational assistant designed for Computer Science, Engineering, and Science students. It transforms your local PDF textbooks, lecture slides, and notes into an interactive, grounded AI mentor capable of in-depth explanations, complete code dry runs with step-by-step trace tables, memory visualization, and exportable Mermaid diagrams.
+> **DocMind RAG** is a 100% private, offline, zero-API-cost **Retrieval-Augmented Generation (RAG)** educational mentor engineered for Computer Science, Engineering, and Science students. It transforms your local PDF lecture slides, handwritten notes, and textbooks into an interactive, syllabus-grounded AI assistant capable of proportionate marks-based answers, step-by-step code dry runs, memory visualization, and exportable Mermaid diagrams.
 
 ---
 
@@ -17,9 +17,28 @@
 
 ---
 
-## 📚 What We Learn From This Project (Core CS & AI Concepts)
+## 📸 Live Interface & Key Capabilities
 
-Building and understanding DocMind RAG teaches fundamental concepts across modern Artificial Intelligence, Systems Programming, Information Retrieval, and Full-Stack Engineering:
+### 1. Main Learning Dashboard & Multi-Folder Scoping
+The frontend features a modern glassmorphism UI with multi-session chat persistence, subject-based folder filtering, real-time token streaming, and system telemetry:
+
+![DocMind Streamlit Live UI](assets/frontend_ui.png)
+
+### 2. Marks-Based Q&A with Live Interactive Diagrams
+DocMind automatically adapts explanation depth to question intent—giving crisp 1–5 line answers for short queries while rendering interactive, zoomable **Mermaid.js flowcharts**:
+
+![Live Interactive Diagram and Q&A](assets/live_diagram_chat.png)
+
+### 3. Source Grounding, Timestamps & Action Toolbar
+Every assistant response cites its exact PDF sources and includes generation latency, message timestamps, and zero-reload action controls (📋 Copy, 👍 Like, 👎 Dislike):
+
+![Source Citations, Timestamps and Actions](assets/source_citations_actions.png)
+
+---
+
+## 📚 Core CS & AI Concepts Learned From This Project
+
+Building and running DocMind RAG teaches fundamental concepts across Artificial Intelligence, Information Retrieval, Natural Language Processing, and Systems Engineering:
 
 ```mermaid
 flowchart LR
@@ -32,29 +51,26 @@ flowchart LR
     G --> H["8. Streaming UI & Trace Tables<br/>(Streamlit + Mermaid.js)"]
 ```
 
-### 1. Retrieval-Augmented Generation (RAG) vs. Pure LLMs
-- **The Problem with Raw LLMs**: Standard Large Language Models suffer from hallucinations, lack private syllabus context, and cannot reference your specific university slides or PDFs.
-- **The RAG Solution**: RAG separates *knowledge storage* (vector database) from *reasoning* (the LLM). Relevant excerpts from your notes are dynamically fetched and injected into the prompt, grounding every answer in your actual study material.
+### 1. Retrieval-Augmented Generation (RAG) vs. Vanilla LLMs
+- **The Problem with Raw LLMs**: Standard LLMs hallucinate, lack private syllabus context, and cannot reference your university slides.
+- **The RAG Solution**: RAG decouples *knowledge storage* (vector database) from *reasoning* (the LLM). Relevant excerpts from your notes are dynamically retrieved and injected into the prompt, grounding every answer in your actual study material.
 
-### 2. Dense Vector Embeddings & High-Dimensional Semantic Spaces
-- **Text to Geometry**: The `BAAI/bge-small-en-v1.5` transformer model projects arbitrary sentences into a **384-dimensional dense vector space**.
-- **Semantic Proximity**: Sentences with similar meanings (e.g. `"LIFO data structure"` and `"Stack push and pop operations"`) are placed close to each other in vector space, measured using **Cosine Similarity**:
+### 2. Dense Vector Embeddings (BGE-small-en-v1.5)
+- **Text to Geometry**: The embedding model maps sentences into a **384-dimensional continuous vector space**.
+- **Semantic Proximity**: Semantically related queries and chunks have high **Cosine Similarity**:
   $$\text{Similarity}(u, v) = \frac{u \cdot v}{\|u\| \|v\|}$$
 
-### 3. Text Chunking & Context Window Strategies
-- **Window Constraints**: Embedding models and LLMs have finite context limits. We split raw PDF text into discrete **800-character chunks with 120-character overlap**.
-- **Sliding Overlap**: The overlap guarantees that sentences or code blocks split across chunk boundaries maintain contextual continuity and do not lose semantic meaning.
+### 3. Recursive Chunking & Overlap Window
+- **Token Constraints**: We partition extracted text into **800-character chunks with 120-character overlap**.
+- **Sliding Overlap**: Guarantees that formulas, definitions, and code blocks split across chunk boundaries do not lose context.
 
-### 4. Vector Databases & Metadata-Scoped Indexing (ChromaDB)
-- **HNSW Indexing**: ChromaDB uses Hierarchical Navigable Small World (HNSW) graphs to perform approximate nearest-neighbor searches in sub-millisecond time.
-- **Folder Scoping**: Chunks are stored with structured metadata (`source`, `folder`, `chunk_index`), enabling users to restrict searches to specific subjects (e.g., searching only within the `OS` folder or across `All` folders).
+### 4. Vector Database & Folder-Scoped Indexing (ChromaDB)
+- **HNSW Indexing**: ChromaDB indexes embeddings using Hierarchical Navigable Small World graphs for sub-millisecond retrieval.
+- **Folder Scoping**: Metadata tags (`source`, `folder`, `chunk_index`) allow filtering queries to specific subjects (e.g. `OS` or `DBMS` or `All`).
 
 ### 5. Local LLM Quantization & Context Length Budgeting (GGUF & llama.cpp)
-- **4-Bit GGUF Quantization (`Q4_K_M`)**: Compresses the 3-billion parameter Qwen2.5 model from ~6 GB down to ~2.1 GB, allowing real-time CPU execution without expensive GPU VRAM.
-- **Context Length Management (`N_CTX = 8192`)**: Ensures sufficient headroom for the system prompt (~848 tokens) + retrieved PDF context (~1,200 tokens) + full output generation (~2,048 tokens), completely preventing mid-sentence truncation.
-
-### 6. Rigorous Dry Runs & Algorithmic Tracing
-- **Step-by-Step Trace Tables**: Translates abstract code into concrete execution tables tracking line numbers, variable states (`Before -> After`), conditions evaluated, and stack/array memory transitions.
+- **4-Bit Quantization (`Q4_K_M`)**: Compresses Qwen2.5 3B from ~6 GB to ~2.1 GB, running on standard consumer CPUs without requiring a dedicated GPU.
+- **Context Length (`N_CTX = 8192`)**: Provides full headroom for System Prompt (~480 tokens) + Retrieved Context (~1,200 tokens) + Multi-Turn History (~1,000 tokens) + Generation (~2,048 tokens), eliminating mid-sentence truncation.
 
 ---
 
@@ -63,14 +79,17 @@ flowchart LR
 ```text
 RAG PDF CHATBOT/
 ├── app.py                      # Streamlit Frontend (Chat UI, Notes Explorer, Diagram Exporter)
-├── config.py                   # Global system parameters, N_CTX=8192, and System Prompt
+├── config.py                   # System parameters, N_CTX=8192, and optimized System Prompt
 ├── download_model.py           # Auto-downloader for Qwen2.5 3B GGUF model
 ├── run.py                      # One-click launcher script
 ├── requirements.txt            # Python package dependencies
-├── .env                        # Local runtime environment settings
+├── .env                        # Local runtime environment settings (never committed)
 ├── .env.example                # Configuration template
-├── assets/                     # Architectural infographics & UI diagrams
+├── assets/                     # Architectural infographics & UI screenshots
 │   ├── docmind_rag_overview.png
+│   ├── frontend_ui.png
+│   ├── live_diagram_chat.png
+│   ├── source_citations_actions.png
 │   └── ui_dry_run_workflow.png
 ├── chat_history/               # Persistent JSON chat sessions on disk
 │   └── chat_*.json
@@ -94,30 +113,27 @@ RAG PDF CHATBOT/
 
 ## 🖥️ How the Frontend Works
 
-![DocMind Streamlit Live UI](assets/frontend_ui.png)
-
 The frontend is built with **Streamlit** and augmented with custom **HTML5/CSS3 glassmorphism design** and **interactive JavaScript components**:
 
 1. **Sidebar Control Hub**:
-   - **Chat Management Tab**: Lists all persistent chat conversations with message counters, pin/unpin toggles, renaming popovers, and deletion controls.
-   - **Notes & Folders Explorer**: Displays folder hierarchy, document counts, chunk statistics, and individual document deletion.
-   - **Upload Ingestion Tab**: Allows uploading multi-page PDF documents into custom or default folders with real-time progress bars.
-   - **System Status Card**: Displays active model status, context window size (`8192 tokens`), and GPU layer offloading status.
+   - **Chat Conversations Tab**: Manage multi-turn sessions, pin important topics, rename chats, or delete logs.
+   - **Notes & Folders Explorer**: Inspect folder hierarchies, document counts, chunk statistics, and remove individual files.
+   - **Upload Ingestion Tab**: Upload multi-page PDF documents into category folders with real-time progress indicators.
+   - **System Status Card**: Real-time telemetry displaying model state, GPU layer offloading, and context size (`8192 tokens`).
 2. **Search Scope Selector**:
-   - Dynamic multiselect dropdown allowing queries across `"All"` documents or scoped to specific subjects (e.g. `OS` + `DBMS`).
+   - Dynamic multiselect allowing searches across `"All"` documents or scoped to specific subjects (e.g. `OS` + `DBMS`).
 3. **Real-Time Token Streaming**:
-   - Utilizes Python generator streaming to render response tokens in real-time with an animated cursor (`▌`), avoiding long waiting times.
+   - Streams response tokens in real-time with an animated cursor (`▌`) for zero perceived latency.
 4. **Message Action Bar & Timestamps**:
-   - 📋 **Copy**: Direct clipboard copy with instant visual feedback (`Copied!`).
-   - 👍 **Like** & 👎 **Dislike**: Instant feedback rating on assistant explanations.
-   - 🕒 **Timestamps**: Real-time display of message delivery time (e.g., `🕒 12:18 PM`).
+   - 📋 **Copy**: Direct clipboard copy with instant visual confirmation (`Copied!`).
+   - 👍 **Like** & 👎 **Dislike**: Feedback rating buttons for student evaluation.
+   - 🕒 **Timestamps**: Real-time display of message delivery time (`🕒 01:23 PM`).
    - 📎 **Metadata Badges**: Cites source document names, retrieval folder scopes, and generation latency (`⏱️ 0.8s`).
 5. **Interactive Mermaid.js Diagram Engine**:
-   - Auto-detects and sanitizes LLM-generated Mermaid diagrams.
-   - Embeds a custom HTML5 canvas component featuring:
-     - 💾 **Save PNG**: High-resolution 2x DPI canvas export directly to local downloads.
-     - 📥 **Save SVG**: Lossless vector graphic download.
-     - 📋 **Copy Code**: One-click Mermaid syntax copying to clipboard.
+   - Renders live architectural and algorithmic flowcharts with direct export:
+     - 💾 **Save PNG**: High-resolution 2x DPI canvas export to downloads.
+     - 📥 **Save SVG**: Lossless vector graphic export.
+     - 📋 **Copy Code**: One-click Mermaid syntax copying.
 
 ---
 
@@ -132,35 +148,35 @@ flowchart TD
         EMBEDS -->|Add Documents + Metadatas| CHROMA[("ChromaDB Persistent Client")]
     end
 
-    subgraph RETRIEVAL ["🔍 Retrieval & Prompt Assembly"]
+    subgraph RETRIEVAL ["🔍 Retrieval & Multi-Turn Assembly"]
         QUERY["User Question"] -->|embed_query| Q_VEC["Query Vector (384D)"]
         Q_VEC -->|Cosine Similarity + Scoped Filter| CHROMA
         CHROMA -->|Top-K Chunks| CTX["Ranked Context Documents"]
-        CTX --> BUDGET{"Context Budgeting<br/>Prompt + Output <= 8192?"}
+        HISTORY["Active Session Chat History"] --> PROMPT_BUILDER["ChatML Prompt Assembly"]
+        CTX --> PROMPT_BUILDER
+        PROMPT_BUILDER --> BUDGET{"Context Budgeting<br/>Prompt + Output <= 8192?"}
         BUDGET -->|Fits| PROMPT["ChatML Structured Prompt"]
         BUDGET -->|Exceeds| TRIM["Trim Lower-Ranked Chunks"] --> PROMPT
     end
 
-    subgraph INFERENCE ["🧠 Local Inference & Output"]
+    subgraph INFERENCE ["🧠 Local Inference & Persistence"]
         PROMPT -->|llama-cpp-python| LLM["Qwen2.5 3B GGUF Engine"]
         LLM -->|Stream Tokens| UI["Streamlit Chat Interface"]
-        UI -->|Save Session| DISK[("chat_history/*.json")]
+        UI -->|Atomic Write| DISK[("chat_history/*.json")]
     end
 ```
 
-### 1. Text Extraction (`core/pdf_loader.py`)
-- Powered by **PyMuPDF (`fitz`)**, which extracts text from complex multi-column layouts, tables, and formatted slides significantly faster than standard PDF parsers.
+### 1. Document Extraction (`core/pdf_loader.py`)
+- Powered by **PyMuPDF (`fitz`)**, extracting text from multi-column layouts, tables, and slides at up to 10x the speed of traditional parsers.
 
 ### 2. Chunking Engine (`core/chunker.py`)
-- Employs LangChain's `RecursiveCharacterTextSplitter` splitting on natural boundaries (`\n\n`, `\n`, `. `, ` `, `""`) to preserve semantic coherence.
+- Uses LangChain's `RecursiveCharacterTextSplitter` splitting on natural paragraph and sentence boundaries.
 
 ### 3. Embedding Pipeline (`core/embedder.py`)
-- Uses **BGE-small-en-v1.5** via `sentence-transformers`.
-- Queries automatically receive the instruction prefix `Represent this sentence: ` to optimize the dense retrieval representation.
+- Uses **BGE-small-en-v1.5** via `sentence-transformers`. Queries are automatically prepended with `Represent this sentence: ` for optimal retrieval accuracy.
 
 ### 4. ChromaDB Vector Store (`core/vector_store.py`)
-- Stores documents persistently in `chroma_db/`.
-- Queries apply metadata filters:
+- Persists document vectors in `chroma_db/`. Queries execute with metadata filters:
   ```python
   # Single folder filter
   {"folder": "OS"}
@@ -169,44 +185,42 @@ flowchart TD
   ```
 
 ### 5. LLM Engine & Context Budgeting (`core/llm.py`)
-- Loads the GGUF model via `llama-cpp-python`.
-- **Dynamic Context Budgeting (`_trim_context_to_budget`)**:
-  Calculates exact prompt token count against `N_CTX = 8192`. If context chunks exceed the safe generation threshold, lower-ranking chunks are automatically trimmed from the bottom, guaranteeing **2,048 tokens** of generation space.
+- **Dynamic Context Budgeting (`_trim_context_to_budget`)**: Computes exact prompt token counts against `N_CTX = 8192`. If context chunks exceed the safe generation threshold, lower-ranking chunks are automatically trimmed from the bottom, safeguarding **2,048 tokens** of generation space.
 
-### 6. Persistent Chat Manager (`core/chat_manager.py`)
-- Persists conversations as clean JSON files in `chat_history/` with atomic write operations (`temp_path` -> `os.replace`), preventing corrupted chat logs on unexpected terminations.
+### 6. Multi-Turn Session Manager (`core/chat_manager.py`)
+- Persists conversations as clean JSON files in `chat_history/` using atomic writes (`temp_path` -> `os.replace`), preventing corrupted chat logs.
 
 ---
 
-## 🔄 Lifecycle of a Reply: How Each Query & Response Works
+## 🔄 Lifecycle of a Reply: Query Execution Sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User
-    participant App as Streamlit Frontend (app.py)
+    actor Student
+    participant UI as Streamlit Frontend (app.py)
     participant Embed as Embedder (core/embedder.py)
     participant VDB as ChromaDB (core/vector_store.py)
     participant LLM as LLM Engine (core/llm.py)
-    participant Storage as Chat History Disk
+    participant Disk as Chat History (chat_history/)
 
-    User->>App: Submits question (e.g. "Explain Stack with Dry Run")
-    App->>App: Render user message & display spinner
-    App->>Embed: embed_query(prompt)
-    Embed-->>App: Returns 384D Query Vector
-    App->>VDB: query(query_embedding, top_k=6, folder=selected_scope)
-    VDB-->>App: Returns top-6 context chunks + document metadata
-    App->>LLM: generate(prompt, context, stream=True)
-    LLM->>LLM: _trim_context_to_budget() (Checks <= 8192 tokens)
-    LLM->>LLM: _assemble_chatml() (Injects System Prompt + Dry Run Protocol)
-    loop Token Streaming
-        LLM-->>App: Yields token string (e.g. "###", " Concept", ...)
-        App->>App: Updates live placeholder (text + "▌")
+    Student->>UI: Types question (e.g. "What is SQL in 5 lines?")
+    UI->>UI: Renders user bubble with timestamp 🕒
+    UI->>Embed: embed_query(prompt)
+    Embed-->>UI: Returns 384D vector
+    UI->>VDB: query(embedding, top_k=6, folder=scope)
+    VDB-->>UI: Returns top-6 PDF chunks + metadata
+    UI->>LLM: generate(prompt, context, history, stream=True)
+    LLM->>LLM: _trim_context_to_budget() (<= 8192 tokens)
+    LLM->>LLM: _assemble_chatml() (Injects System Prompt + History)
+    loop Streaming Generation
+        LLM-->>UI: Yields token chunk ("SQL", " stands", " for", ...)
+        UI->>UI: Updates live text placeholder ("▌")
     end
-    App->>App: render_message_content() (Parses Markdown, Tables, Mermaid)
-    App->>Storage: add_message(role="assistant", content, sources, time)
-    Storage-->>App: Session JSON atomically saved to disk
-    App->>User: Displays complete formatted answer with badges & diagram toolbar
+    UI->>UI: render_message_content() (Parses Markdown, Tables, Mermaid)
+    UI->>Disk: add_message(role="assistant", content, sources, exec_time)
+    Disk-->>UI: Session JSON saved atomically
+    UI->>Student: Displays formatted answer + badges + Copy/Like/Dislike toolbar
 ```
 
 ---
