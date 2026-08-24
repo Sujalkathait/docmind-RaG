@@ -16,7 +16,6 @@
 | Component | Specification / Details |
 | :--- | :--- |
 | **LLM Model** | **Qwen 2.5 (3 Billion parameters)** |
-| **Creator** | Alibaba Cloud (Qwen Team) |
 | **Model Source** | Hugging Face (`Qwen/Qwen2.5-3B-Instruct-GGUF`) |
 | **Model Format** | **GGUF** (`q4_k_m` 4-bit quantization, ~2.1 GB) |
 | **Inference Engine** | Direct local Python execution via **`llama-cpp-python`** (No Ollama background service required) |
