@@ -38,6 +38,8 @@ Remove-Item models\qwen2.5-3b-instruct-q4_k_m.gguf
 
 # 4. Download / Restore Model
 python download_model.py
+# delete model
+ del models\qwen2.5-3b-instruct-q4_k_m.gguf
 
 # 5. Push Changes to GitHub
 git add .
