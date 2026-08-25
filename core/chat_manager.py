@@ -4,10 +4,24 @@ import os
 import json
 import time
 import uuid
+import re
 from typing import Any, Optional, Union, List, Dict
 from dataclasses import dataclass, asdict, field
 
 CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", "chat_history")
+
+
+def _clean_session_title(raw_text: str) -> str:
+    """Extracts a clean, human-readable session title without raw markdown code fences."""
+    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+    for line in lines:
+        # Strip markdown codeblocks, headers, bullets, and backticks
+        cleaned = re.sub(r"^```[a-zA-Z0-9_-]*", "", line).strip()
+        cleaned = re.sub(r"^[#*`>\-\s\d\.]+", "", cleaned).strip()
+        cleaned = re.sub(r"[`*#_]", "", cleaned).strip()
+        if len(cleaned) >= 3:
+            return cleaned[:36]
+    return "Chat Session"
 
 
 def _ensure_chat_dir():
@@ -37,6 +51,7 @@ class ChatMessage:
     execution_time: float | None = None
     folder_scope: Any = "All"
     feedback: str | None = None  # "liked" | "disliked" | None
+    mode: str | None = None  # "llm" | "direct" | None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -52,6 +67,7 @@ class ChatMessage:
             execution_time=data.get("execution_time") or data.get("time"),
             folder_scope=data.get("folder_scope", "All"),
             feedback=data.get("feedback"),
+            mode=data.get("mode"),
         )
 
 
@@ -189,6 +205,7 @@ def add_message(
     execution_time: float | None = None,
     folder_scope: Any = "All",
     feedback: str | None = None,
+    mode: str | None = None,
 ) -> dict | None:
     """
     Appends a message to the specified session, auto-generating title if first user message.
@@ -207,6 +224,7 @@ def add_message(
         execution_time=execution_time,
         folder_scope=folder_scope,
         feedback=feedback,
+        mode=mode,
     )
 
     session["messages"].append(msg.to_dict())
@@ -217,8 +235,7 @@ def add_message(
         and session.get("title", "New Chat") in ("New Chat", "Untitled Chat")
         and content.strip()
     ):
-        first_line = content.strip().split("\n")[0][:40]
-        session["title"] = first_line
+        session["title"] = _clean_session_title(content)
 
     session["updated_at"] = time.time()
     save_session(session)

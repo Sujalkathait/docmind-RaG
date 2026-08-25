@@ -40,7 +40,14 @@ from core.vector_store import (
     get_document_count,
     sanitize_folder_name,
 )
-from core.llm import generate, is_model_loaded, get_model_info
+from core.llm import (
+    generate,
+    is_model_loaded,
+    get_model_info,
+    get_available_models,
+    set_active_model,
+)
+from download_model import AVAILABLE_MODELS, download_model_file
 from core.chat_manager import (
     get_all_sessions,
     get_session,
@@ -165,6 +172,8 @@ st.markdown("""
         font-size: 0.85rem;
     }
 
+    /* Badges */
+
     /* Source Badges */
     .source-badge {
         display: inline-block;
@@ -255,16 +264,70 @@ st.markdown("""
         margin-bottom: 10px;
         background: rgba(15, 23, 42, 0.45);
     }
+    [data-testid="stChatMessage"] h1 {
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+        color: #e0e7ff !important;
+        margin: 0.6rem 0 0.4rem 0 !important;
+        line-height: 1.4 !important;
+    }
+    [data-testid="stChatMessage"] h2 {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: #c7d2fe !important;
+        margin: 0.5rem 0 0.3rem 0 !important;
+        line-height: 1.35 !important;
+    }
+    [data-testid="stChatMessage"] h3 {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #a5b4fc !important;
+        margin: 0.4rem 0 0.25rem 0 !important;
+    }
+    [data-testid="stChatMessage"] h4, [data-testid="stChatMessage"] h5, [data-testid="stChatMessage"] h6 {
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        color: #cbd5e1 !important;
+        margin: 0.3rem 0 0.2rem 0 !important;
+    }
+    [data-testid="stChatMessage"] p, [data-testid="stChatMessage"] li {
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+        color: #f1f5f9 !important;
+    }
 
     /* Buttons */
-    .stButton > button {
-        border-radius: 9px;
-        font-weight: 600;
-        transition: all 0.2s ease;
+    button[kind="primary"],
+    button[data-testid="baseButton-primary"] {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+        border: 1px solid #818cf8 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        border-radius: 9px !important;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
+        transition: all 0.2s ease !important;
     }
-    .stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    button[kind="primary"]:hover,
+    button[data-testid="baseButton-primary"]:hover {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+        border-color: #a5b4fc !important;
+        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.5) !important;
+        transform: translateY(-1px) !important;
+    }
+    button[kind="secondary"],
+    button[data-testid="baseButton-secondary"] {
+        background: rgba(30, 41, 59, 0.6) !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+        color: #e2e8f0 !important;
+        border-radius: 9px !important;
+        transition: all 0.2s ease !important;
+    }
+    button[kind="secondary"]:hover,
+    button[data-testid="baseButton-secondary"]:hover {
+        background: rgba(99, 102, 241, 0.22) !important;
+        border-color: rgba(99, 102, 241, 0.45) !important;
+        color: #ffffff !important;
+        transform: translateY(-1px) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -862,21 +925,24 @@ with st.sidebar:
         st.session_state.current_session_id = new_sess["id"]
         st.rerun()
 
-    # --- Model Status Card ---
+    # --- Operational Status Card ---
     model_info = get_model_info()
-    if model_info["exists"]:
+    if model_info.get("is_ready", False):
+        model_name = model_info.get("model_name", "Unknown")
+        avail_count = len(model_info.get("available_models", []))
+        extra_info = f" • {avail_count} models installed" if avail_count > 1 else ""
         st.markdown(
             f'<div class="status-card">'
-            f'<div class="status-online">● Model Active</div>'
-            f'<small style="color:#94a3b8;">GPU Layers: {model_info["n_gpu_layers"]} | Context: {model_info["n_ctx"]} tokens</small>'
+            f'<div class="status-online">● LLM Active ({model_name})</div>'
+            f'<small style="color:#94a3b8;">GPU Layers: {model_info["n_gpu_layers"]} | Context: {model_info["n_ctx"]} tokens{extra_info}</small>'
             f'</div>',
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            f'<div class="status-card">'
-            f'<div class="status-offline">● Model Not Found</div>'
-            f'<small style="color:#94a3b8;">Expected in <code>{model_info["model_path"]}</code></small>'
+            f'<div class="status-card" style="border-color: rgba(239, 68, 68, 0.4);">'
+            f'<div class="status-online" style="color:#f87171;">⚠️ LLM Model Not Found</div>'
+            f'<small style="color:#94a3b8;">Download <b>SmolLM2-360M (~258MB)</b> or <b>Qwen2.5-3B (~2GB)</b> via the ⚙️ Manage tab or terminal.</small>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -913,7 +979,10 @@ with st.sidebar:
 
                 col_btn, col_actions = st.columns([0.72, 0.28])
                 with col_btn:
-                    btn_label = f"{pin_icon}{s_title[:22]} ({msg_count})"
+                    clean_s_title = re.sub(r"[`*#_]", "", s_title).strip()
+                    if not clean_s_title:
+                        clean_s_title = "Chat Session"
+                    btn_label = f"{pin_icon}{clean_s_title[:22]} ({msg_count})"
                     if st.button(
                         btn_label,
                         key=f"sel_chat_{s_id}",
@@ -1035,9 +1104,66 @@ with st.sidebar:
             _process_uploads(uploaded_files, upload_dest)
 
     # ------------------------------------
-    # TAB 4: SYSTEM SETTINGS & CLEAR
+    # TAB 4: SYSTEM SETTINGS, MODELS & CLEAR
     # ------------------------------------
     with tab_settings:
+        st.markdown("#### 🤖 LLM Model Management")
+        avail_models = get_available_models()
+        cur_model_info = get_model_info()
+        cur_m_name = cur_model_info.get("model_name", "")
+
+        if avail_models:
+            st.markdown(f"**Installed Models ({len(avail_models)}):**")
+            for m in avail_models:
+                is_curr = m["name"] == cur_m_name
+                curr_indicator = " ⭐ *(Active)*" if is_curr else ""
+                col_minfo, col_mbtn = st.columns([0.70, 0.30])
+                with col_minfo:
+                    st.caption(f"📁 **{m['name']}** ({m['size_str']}){curr_indicator}")
+                with col_mbtn:
+                    if not is_curr:
+                        if st.button("Use", key=f"activate_{m['name']}", use_container_width=True):
+                            set_active_model(m["path"])
+                            st.rerun()
+
+        st.markdown("---")
+        st.markdown("##### 📥 Download / Add Model")
+        model_choices = [f"{v['name']} ({v['size_str']})" for v in AVAILABLE_MODELS.values()]
+        selected_model_str = st.selectbox(
+            "Select Model:",
+            options=model_choices,
+            index=0,
+            key="model_download_selector",
+        )
+
+        chosen_info = next(v for v in AVAILABLE_MODELS.values() if f"{v['name']} ({v['size_str']})" == selected_model_str)
+        st.info(f"💡 **Description**: {chosen_info['description']}\n\n**Target**: `{chosen_info['filename']}`")
+
+        if st.button(f"⬇️ Download {chosen_info['id'].upper()}", type="primary", use_container_width=True):
+            prog_bar = st.progress(0, text="Starting download...")
+            status_text = st.empty()
+
+            def update_st_progress(percent, downloaded, total_size, speed):
+                dl_mb = downloaded / (1024 * 1024)
+                tot_mb = total_size / (1024 * 1024) if total_size > 0 else 0
+                spd_mb = speed / (1024 * 1024) if speed > 0 else 0
+                prog_bar.progress(int(percent), text=f"Downloading {percent:.1f}% ({dl_mb:.1f} MB / {tot_mb:.1f} MB)")
+                status_text.caption(f"Speed: {spd_mb:.2f} MB/s")
+
+            success = download_model_file(
+                url=chosen_info["url"],
+                output_filename=chosen_info["filename"],
+                progress_callback=update_st_progress,
+            )
+
+            if success:
+                st.success(f"🎉 {chosen_info['name']} downloaded successfully!")
+                set_active_model(chosen_info["filename"])
+                st.rerun()
+            else:
+                st.error("Download failed or was cancelled.")
+
+        st.markdown("---")
         st.markdown("#### ⚙️ Data Management")
 
         if st.button("🗑️ Clear All Document Index", type="secondary", use_container_width=True):
@@ -1066,53 +1192,77 @@ if not current_session:
 chat_messages = current_session.get("messages", [])
 chat_title = current_session.get("title", "DocMind RAG Session")
 
-# Header Section
-col_title, col_controls = st.columns([0.65, 0.35])
-
-with col_title:
-    st.markdown(
-        f"""
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+# Header Section — Full Width Branding
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
             <h1 style="background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
                         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                        font-size: 2.2rem; font-weight: 800; margin: 0;">
+                        font-size: 2.2rem; font-weight: 800; margin: 0; white-space: nowrap;">
                 DocMind RAG
             </h1>
             <span style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4);
-                         color: #c7d2fe; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 20px;">
+                         color: #c7d2fe; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; white-space: nowrap;">
                 CS LEARNING ASSISTANT
             </span>
         </div>
-        <p style="color: #94a3b8; font-size: 0.95rem; margin: 0;">
-            Active Chat: <b style="color:#e0e7ff;">{chat_title}</b>
-        </p>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+    <p style="color: #94a3b8; font-size: 0.95rem; margin: 0 0 10px 0;">
+        Active Chat: <b style="color:#e0e7ff;">{chat_title}</b>
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
 
-with col_controls:
-    # Multi-Folder Search Scope Selector
+# Controls Row: Dynamic Model Selector & Multi-Folder Search Scope
+avail_models = get_available_models()
+if len(avail_models) > 1:
+    col_model, col_scope = st.columns([0.42, 0.58])
+    with col_model:
+        model_names = [m["name"] for m in avail_models]
+        cur_m_name = get_model_info().get("model_name", model_names[0])
+        cur_idx = model_names.index(cur_m_name) if cur_m_name in model_names else 0
+        selected_model = st.selectbox(
+            "🤖 Active LLM Model:",
+            options=model_names,
+            index=cur_idx,
+            key="top_model_selector",
+            help="Select which local LLM model to run for reasoning and answers.",
+        )
+        if selected_model != cur_m_name:
+            set_active_model(selected_model)
+            st.rerun()
+    with col_scope:
+        available_folders = [f["name"] for f in get_all_folders()]
+        scope_options = ["All"] + available_folders
+        selected_scope = st.multiselect(
+            "🎯 Search Scope:",
+            options=scope_options,
+            default=["All"] if "All" in scope_options else [available_folders[0]],
+            key="scope_multiselect",
+            help="Select one folder, multiple specific folders (e.g. OS + DBMS), or 'All' to query everything.",
+        )
+else:
     available_folders = [f["name"] for f in get_all_folders()]
     scope_options = ["All"] + available_folders
-
     selected_scope = st.multiselect(
-        "🎯 Search Scope (One, Multi-Folder, or All):",
+        "🎯 Search Scope:",
         options=scope_options,
         default=["All"] if "All" in scope_options else [available_folders[0]],
         key="scope_multiselect",
         help="Select one folder, multiple specific folders (e.g. OS + DBMS), or 'All' to query everything.",
     )
 
-    # Clean scope logic
-    if not selected_scope:
-        effective_scope = ["All"]
-    elif "All" in selected_scope and len(selected_scope) > 1:
-        # If user picked specific folder along with All, prioritize specific or All
-        effective_scope = [s for s in selected_scope if s != "All"]
-    else:
-        effective_scope = selected_scope
+# Clean scope logic
+if not selected_scope:
+    effective_scope = ["All"]
+elif "All" in selected_scope and len(selected_scope) > 1:
+    effective_scope = [s for s in selected_scope if s != "All"]
+else:
+    effective_scope = selected_scope
 
-    st.session_state.selected_folders = effective_scope
+st.session_state.selected_folders = effective_scope
 
 st.divider()
 
@@ -1145,6 +1295,7 @@ for msg_idx, msg in enumerate(chat_messages):
     scope = msg.get("folder_scope")
     msg_id = msg.get("id", str(msg_idx))
     feedback = msg.get("feedback")
+    msg_mode = msg.get("mode")
     msg_ts = msg.get("timestamp", time.time())
     msg_time_str = datetime.fromtimestamp(msg_ts).strftime("%I:%M %p")
 
@@ -1166,7 +1317,7 @@ for msg_idx, msg in enumerate(chat_messages):
                 for s in sources:
                     badges_html.append(f'<span class="source-badge">📎 {s}</span>')
             if exec_time:
-                badges_html.append(f'<span class="timing-badge">⏱️ {exec_time:.1f}s</span>')
+                badges_html.append(f'<span class="timing-badge">⏱️ {exec_time:.2f}s</span>')
             if scope and scope != "All":
                 scope_str = ", ".join(scope) if isinstance(scope, list) else str(scope)
                 badges_html.append(f'<span class="scope-badge">📁 {scope_str}</span>')
@@ -1180,20 +1331,21 @@ for msg_idx, msg in enumerate(chat_messages):
 
 
 # ===========================
-# Chat Input & Streaming Execution
+# Chat Input & Execution
 # ===========================
 
 if prompt := st.chat_input("Ask a question about your CS notes and PDFs..."):
     # 1. Validation Checks
-    if not is_model_loaded():
-        st.error(
-            "⚠️ Local GGUF model not detected. Place your model in the `models/` folder. "
-            "See sidebar for path details."
-        )
-        st.stop()
-
     if get_document_count() == 0:
         st.warning("📭 No documents indexed yet. Upload PDFs using the sidebar first.")
+        st.stop()
+
+    if not is_model_loaded():
+        st.error(
+            "⚠️ **Local LLM Model Not Found!**\n\n"
+            "Please download the Qwen2.5-3B-Instruct GGUF model into the `models/` directory "
+            "(run `python download_model.py` in your terminal)."
+        )
         st.stop()
 
     # Capture prior history turns from current active session
@@ -1247,7 +1399,7 @@ if prompt := st.chat_input("Ask a question about your CS notes and PDFs..."):
                 "Try broadening your search to 'All' or uploading additional PDF notes."
             )
             st.markdown(fallback_response)
-            elapsed = round(time.time() - start_time, 1)
+            elapsed = round(time.time() - start_time, 2)
             add_message(
                 session_id=st.session_state.current_session_id,
                 role="assistant",
@@ -1255,11 +1407,12 @@ if prompt := st.chat_input("Ask a question about your CS notes and PDFs..."):
                 sources=[],
                 execution_time=elapsed,
                 folder_scope=st.session_state.selected_folders,
+                mode="llm",
             )
         else:
-            # Step C: Assemble context
-            context_parts = []
+            # Step C: Assemble context and sources
             sources = []
+            context_parts = []
             for idx, chunk in enumerate(chunks):
                 meta = metadatas[idx] if idx < len(metadatas) else {}
                 src = meta.get("source", "Document")
@@ -1271,8 +1424,6 @@ if prompt := st.chat_input("Ask a question about your CS notes and PDFs..."):
                     sources.append(label)
 
             context = "\n\n---\n\n".join(context_parts)
-
-            # Step D: Stream generation with multi-turn history
             response_placeholder = st.empty()
             full_response = ""
 
@@ -1293,16 +1444,18 @@ if prompt := st.chat_input("Ask a question about your CS notes and PDFs..."):
                     render_message_content(full_response)
 
             except Exception as e:
-                full_response = f"⚠️ Generation error: {str(e)}"
-                response_placeholder.markdown(full_response)
+                full_response = f"⚠️ LLM Generation encountered an error: {str(e)}"
+                response_placeholder.empty()
+                with response_placeholder.container():
+                    render_message_content(full_response)
 
-            elapsed = round(time.time() - start_time, 1)
+            elapsed = round(time.time() - start_time, 2)
 
             # Badges + Timestamp
             badges_html = []
             for s in sources:
                 badges_html.append(f'<span class="source-badge">📎 {s}</span>')
-            badges_html.append(f'<span class="timing-badge">⏱️ {elapsed}s</span>')
+            badges_html.append(f'<span class="timing-badge">⏱️ {elapsed:.2f}s</span>')
             if target_folders:
                 badges_html.append(f'<span class="scope-badge">📁 {", ".join(target_folders)}</span>')
             ans_time_str = datetime.now().strftime("%I:%M %p")
@@ -1318,6 +1471,7 @@ if prompt := st.chat_input("Ask a question about your CS notes and PDFs..."):
                 sources=sources,
                 execution_time=elapsed,
                 folder_scope=st.session_state.selected_folders,
+                mode="llm",
             )
 
             # Action Bar
