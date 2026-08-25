@@ -99,20 +99,10 @@ DocMind is configured with an intelligent rule framework to prevent hallucinatio
 
 ## 📸 Live Interface & Key Capabilities
 
-### 1. Main Learning Dashboard & Multi-Folder Scoping
-The frontend features a modern glassmorphism UI with multi-session chat persistence, subject-based folder filtering, real-time token streaming, dynamic model switching, and system telemetry:
+### Main Learning Dashboard & Multi-Folder Scoping
+The frontend features a modern glassmorphism UI with multi-session chat persistence, subject-based folder filtering, real-time token streaming, dynamic model switching, source citations, execution telemetry, and action toolbars:
 
 ![DocMind Streamlit Live UI](assets/frontend_ui.png)
-
-### 2. Marks-Based Q&A with Live Interactive Diagrams
-DocMind adapts explanation depth to question intent—giving crisp 1–5 line answers for short queries while rendering interactive, zoomable **Mermaid.js flowcharts** on demand:
-
-![Live Interactive Diagram and Q&A](assets/live_diagram_chat.png)
-
-### 3. Source Grounding, Timestamps & Action Toolbar
-Every assistant response cites its exact PDF sources and includes generation latency, message timestamps, and zero-reload action controls (📋 Copy, 👍 Like, 👎 Dislike):
-
-![Source Citations, Timestamps and Actions](assets/source_citations_actions.png)
 
 ---
 
@@ -165,9 +155,7 @@ RAG PDF CHATBOT/
 ├── .env.example                # Configuration template
 ├── assets/                     # Architectural infographics & UI screenshots
 │   ├── docmind_rag_overview.png
-│   ├── frontend_ui.png
-│   ├── live_diagram_chat.png
-│   └── source_citations_actions.png
+│   └── frontend_ui.png
 ├── chat_history/               # Persistent JSON chat sessions on disk
 │   └── chat_*.json
 ├── chroma_db/                  # Persistent ChromaDB vector store directory
