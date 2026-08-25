@@ -93,7 +93,38 @@ DocMind is configured with an intelligent rule framework to prevent hallucinatio
 
 ## 🏛️ System Architecture Overview
 
-![DocMind Local PDF RAG Architecture](assets/docmind_rag_overview.png)
+```mermaid
+flowchart TD
+    subgraph Client ["💻 Interactive Frontend (Streamlit)"]
+        UI["Chat Interface & Glassmorphism Dashboard"]
+        Stream["Real-Time Token Streaming Engine"]
+    end
+
+    subgraph Storage ["📁 Local Storage & Vector Database"]
+        PDFs["PDF Documents (pdfs/)"]
+        Chroma[("ChromaDB Vector Store (chroma_db/)")]
+        History[("Chat Sessions (chat_history/*.json)")]
+    end
+
+    subgraph Pipeline ["⚙️ RAG Processing Pipeline"]
+        Loader["PyMuPDF (fitz) Text Extraction"]
+        Chunker["Recursive Sliding Chunking (800 / 120)"]
+        Embedder["BGE-small-en-v1.5 Dense Embeddings (384D)"]
+        Budgeter["Context Length & Token Budget Manager"]
+    end
+
+    subgraph LLMEngine ["🧠 Local GGUF Inference (llama.cpp)"]
+        Prompts["DocMind 30-Rule System Prompt"]
+        SmolLM["SmolLM2-360M (~258 MB)"]
+        Qwen["Qwen2.5-3B (~2.0 GB)"]
+    end
+
+    PDFs --> Loader --> Chunker --> Embedder --> Chroma
+    UI --> Embedder
+    Chroma --> Budgeter
+    Budgeter --> Prompts --> SmolLM & Qwen --> Stream --> UI
+    UI --> History
+```
 
 ---
 
@@ -153,8 +184,7 @@ RAG PDF CHATBOT/
 ├── requirements.txt            # Python package dependencies
 ├── .env                        # Local runtime environment settings (ignored by git)
 ├── .env.example                # Configuration template
-├── assets/                     # Architectural infographics & UI screenshots
-│   ├── docmind_rag_overview.png
+├── assets/                     # Live application screenshots
 │   └── frontend_ui.png
 ├── chat_history/               # Persistent JSON chat sessions on disk
 │   └── chat_*.json
