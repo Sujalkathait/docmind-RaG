@@ -7,7 +7,7 @@
 [![PyMuPDF](https://img.shields.io/badge/PyMuPDF-PDF_Extraction-00C49F.svg?style=for-the-badge)](https://pymupdf.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-> **DocMind RAG** is a 100% private, offline, zero-API-cost **Retrieval-Augmented Generation (RAG)** educational assistant engineered for Computer Science, Engineering, and Science students. It transforms your local PDF lecture slides, handwritten notes, and textbooks into an interactive, syllabus-grounded AI mentor with strict question-adherence, step-by-step code dry runs, marks-based exam answers, memory visualization, and exportable Mermaid diagrams.
+> **DocMind RAG** is a 100% private, offline, zero-API-cost **Retrieval-Augmented Generation (RAG)** educational assistant engineered for Computer Science, Engineering, and Science students. It turns your local PDF lecture slides, handwritten notes, and textbooks into an interactive, syllabus-grounded AI mentor with strict question-adherence, step-by-step code dry runs, marks-based exam answers, memory visualization, and exportable Mermaid diagrams.
 
 ---
 
@@ -17,11 +17,11 @@
 | :--- | :--- |
 | **Supported LLMs** | **[1] HuggingFaceTB/SmolLM2-360M-Instruct** (~258 MB) • **[2] Qwen/Qwen2.5-3B-Instruct** (~2.0 GB) |
 | **Model Format** | **GGUF** (4-bit quantization, local offline execution) |
-| **Inference Engine** | Direct local Python execution via **`llama-cpp-python`** (No Ollama background service required) |
+| **Inference Engine** | Direct local Python execution via **`llama-cpp-python`** (No background daemon required) |
 | **System Prompt Engine** | **DocMind 30-Rule Pedagogical Framework**: Strict answer-only adherence, notes-first grounding, multi-scenario routing, and token efficiency |
 | **Embedding Model** | **BGE-small-en-v1.5** (384-dimensional dense vectors via `sentence-transformers`) |
 | **Vector Database** | **ChromaDB** (Persistent on disk in `chroma_db/`) |
-| **Frontend** | Streamlit + Dynamic Model Switcher + Custom Glassmorphism UI + Mermaid.js Flowchart Engine |
+| **Frontend** | Streamlit + Dynamic Model Switcher + Glassmorphism UI + Mermaid.js Flowchart Engine |
 | **Privacy & Cost** | **100% Offline, Zero API Keys, 100% Free & Private** |
 
 ---
@@ -42,6 +42,20 @@ python run.py
 # 3. Check Installed Models
 python download_model.py --list
 ```
+
+---
+
+## 📸 Live Interface & Key Capabilities
+
+### 1. Main Learning Dashboard & PDF Source Citations
+The frontend features a modern glassmorphism UI with multi-session chat persistence, subject-based folder filtering, real-time token streaming, dynamic model switching, PDF source badges, execution telemetry, and zero-reload action controls (📋 Copy, 👍 Like, 👎 Dislike):
+
+![DocMind Streamlit Live UI](assets/frontend_ui.png)
+
+### 2. Dynamic Local Model Switcher & Welcome State
+Seamlessly switch between active installed GGUF models (**SmolLM2 360M** and **Qwen2.5 3B**) on the fly directly from the top dropdown without restarting the server:
+
+![Dynamic Model Switcher & Welcome Screen](assets/model_switcher_ui.png)
 
 ---
 
@@ -128,48 +142,103 @@ flowchart TD
 
 ---
 
-## 📸 Live Interface & Key Capabilities
+## 🧠 CS & AI Concepts Learned From This Project (Explained Simply)
 
-### Main Learning Dashboard & Multi-Folder Scoping
-The frontend features a modern glassmorphism UI with multi-session chat persistence, subject-based folder filtering, real-time token streaming, dynamic model switching, source citations, execution telemetry, and action toolbars:
-
-[DocMind Streamlit Live UI] model_switcher_
-
----
-
-## 📚 Core CS & AI Concepts in this Project
-
-DocMind RAG provides a practical implementation of fundamental concepts across Artificial Intelligence, Information Retrieval, and Systems Engineering:
+Building DocMind RAG covers core Computer Science, Information Retrieval, and Machine Learning principles in a practical, real-world application:
 
 ```mermaid
 flowchart LR
-    A["1. Document Parsing<br/>(PyMuPDF / fitz)"] --> B["2. Recursive Chunking<br/>(Sliding Window)"]
-    B --> C["3. Dense Embeddings<br/>(BGE-small 384D)"]
-    C --> D["4. Vector DB Storage<br/>(ChromaDB / HNSW)"]
-    D --> E["5. Scoped Retrieval<br/>(Cosine Similarity)"]
+    A["1. PDF Parsing<br/>(PyMuPDF)"] --> B["2. Sliding Chunking<br/>(Overlap Window)"]
+    B --> C["3. Dense Embeddings<br/>(BGE 384D Space)"]
+    C --> D["4. Vector DB Storage<br/>(ChromaDB HNSW)"]
+    D --> E["5. Cosine Retrieval<br/>(Nearest Neighbor)"]
     E --> F["6. Context Budgeting<br/>(Dynamic Trimming)"]
-    F --> G["7. Local GGUF LLM<br/>(SmolLM2 / Qwen2.5)"]
-    G --> H["8. Streaming UI & Actions<br/>(Streamlit + Mermaid.js)"]
+    F --> G["7. Local GGUF LLM<br/>(llama.cpp 4-Bit)"]
+    G --> H["8. Token Streaming<br/>(Live Yielding)"]
 ```
 
-### 1. Retrieval-Augmented Generation (RAG)
-- **Decoupled Architecture**: Separates knowledge storage (ChromaDB) from reasoning (the LLM). Relevant excerpts from your notes are dynamically retrieved and injected into the prompt, grounding every answer in your actual study material.
+---
 
-### 2. Dense Vector Embeddings (BGE-small-en-v1.5)
-- **384-Dimensional Vectors**: Maps sentences into a continuous dense geometric space.
-- **Cosine Proximity**:
-  $$\text{Similarity}(u, v) = \frac{u \cdot v}{\|u\| \|v\|}$$
+### 1. Retrieval-Augmented Generation (RAG): The "Open-Book Exam" Analogy
+- **The Problem with Raw LLMs**: Standard language models act like a student taking a **closed-book exam**. They rely solely on memorized parameters from pre-training. If asked about your specific college syllabus, unique textbook diagrams, or private notes, they guess or hallucinate.
+- **The RAG Solution**: RAG turns the model into a student taking an **open-book exam**. When you ask a question:
+  1. The system searches your uploaded PDFs for the most relevant paragraphs (*Retrieval*).
+  2. It places those exact paragraphs directly into the prompt context (*Augmentation*).
+  3. The local LLM reads the paragraphs and writes a precise, factual response (*Generation*).
+- **Benefit**: 100% factual accuracy grounded in your notes, zero hallucinations, and no expensive fine-tuning required.
 
-### 3. Recursive Chunking & Overlap Window
-- **Sliding Overlap**: Partitions extracted text into **800-character chunks with 120-character overlap** to ensure definitions, code blocks, and formulas spanning boundaries remain coherent.
+---
 
-### 4. Vector Database & Folder-Scoped Indexing (ChromaDB)
-- **HNSW Graph Indexing**: Provides sub-millisecond similarity search.
-- **Metadata Filtering**: Enables filtering queries to specific subjects (e.g. `OS`, `DBMS`, or `All`).
+### 2. Dense Vector Embeddings: Text to High-Dimensional Geometry
+- **How Computers Understand Meaning**: Computers cannot understand raw text or words directly. An embedding model (like `BAAI/bge-small-en-v1.5`) takes a sentence and converts it into a list of 384 floating-point numbers called a **dense vector** (a coordinate in 384-dimensional space).
+- **Geometric Proximity**: Sentences with similar meanings end up close together in this mathematical space, even if they use completely different words!
+  - *"What is a stack?"* and *"Explain LIFO data structure"* have coordinates very close to each other.
+- **Cosine Similarity Formula**: We measure the similarity between query vector $\vec{u}$ and document vector $\vec{v}$ by computing the cosine of the angle $\theta$ between them:
+  $$\text{Cosine Similarity} = \cos(\theta) = \frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|}$$
+  - A value of `1.0` means identical direction/meaning.
+  - A value of `0.0` means completely unrelated.
 
-### 5. Local LLM Quantization & Context Length Budgeting (GGUF & llama.cpp)
-- **4-Bit Quantization (`Q4_K_M`)**: Compresses models by ~60-70%, running smoothly on standard consumer CPUs without requiring a dedicated GPU.
-- **Context Length (`N_CTX = 8192`)**: Provides ample headroom for System Prompt + Retrieved Context (~1,200 tokens) + Multi-Turn History (~1,000 tokens) + Generation (~2,048 tokens), eliminating mid-sentence truncation.
+---
+
+### 3. Recursive Chunking with Sliding Window Overlap
+- **Why Chunk?**: You cannot pass an entire 300-page textbook into an embedding model at once (embedding models have a 512-token limit). Text must be chopped into smaller pieces.
+- **The Boundary Problem**: If a definition, code snippet, or SQL query gets cut in half across chunk borders, the meaning is destroyed.
+- **The Solution**: We use **800-character chunks with a 120-character sliding overlap**:
+  ```text
+  [ Chunk 1: Characters 0 to 800 .......................... [OVERLAP: 680 to 800] ]
+                                                            [ Chunk 2: Characters 680 to 1480 .... ]
+  ```
+  The overlap guarantees that critical sentences and formulas spanning chunk edges are never lost.
+
+---
+
+### 4. Vector Databases & HNSW Indexing (ChromaDB)
+- **Traditional Database vs. Vector Database**:
+  - Traditional DB (SQL): Exact matches (e.g., `WHERE name = 'SQL'`).
+  - Vector DB (ChromaDB): Semantic similarity matches (finding the closest geometric vectors).
+- **HNSW (Hierarchical Navigable Small World)**:
+  - Searching through 100,000 vectors one-by-one (brute force) is slow ($O(N)$).
+  - HNSW builds multi-layered graphs (like highways for long distances and city streets for exact spots). It finds the nearest semantic neighbors in sub-millisecond time ($O(\log N)$).
+- **Folder Scoping**: Metadata tags (`folder: "OS"`, `folder: "DBMS"`) allow students to filter search scopes to specific subjects or search across `"All"`.
+
+---
+
+### 5. Local LLM Quantization (GGUF & llama.cpp)
+- **What is Quantization?**: Standard LLM weights are stored as 16-bit or 32-bit floating-point numbers, requiring massive GPU VRAM (8 GB to 16 GB+).
+- **4-Bit GGUF (`Q4_K_M`)**: Quantization rounds model weights down to 4-bit integers.
+  - **Memory Reduction**: Shrinks the model size by ~70% (Qwen2.5-3B drops from ~7 GB down to ~2.0 GB).
+  - **CPU Friendliness**: Enables smooth, fast local inference on ordinary consumer laptops without needing an expensive NVIDIA GPU.
+- **Zero API Costs & Privacy**: All computation runs 100% offline inside your Python process. Your study notes and queries never leave your computer.
+
+---
+
+### 6. Context Window & Dynamic Token Budgeting
+- **The Context Window (`N_CTX = 8192`)**: An LLM has a finite memory buffer measured in tokens for every prompt:
+  $$\text{Total Tokens} = \text{System Prompt} + \text{Chat History} + \text{PDF Chunks} + \text{Generated Output} \le N_{\text{CTX}}$$
+- **Dynamic Budgeting (`_trim_context_to_budget`)**: If multiple large PDF chunks exceed the budget, DocMind dynamically trims lower-ranked chunks from the bottom, ensuring the model never runs out of space mid-sentence.
+
+---
+
+### 7. Multi-Turn ChatML Prompt Formatting
+- DocMind formats conversation turns using the standardized **ChatML format**:
+  ```text
+  <|im_start|>system
+  You are DocMind, a simple and accurate CS & Engineering Learning Assistant...<|im_end|>
+  <|im_start|>user
+  Context from study notes:
+  [PDF Chunk 1: DBMS is a collection of related data...]
+
+  what is dbms?<|im_end|>
+  <|im_start|>assistant
+  A Database Management System (DBMS) is...<|im_end|>
+  ```
+- **Context Retention**: Remembers previous questions so you can ask follow-ups like *"Explain that with a dry run"* or *"Same for stack"* seamlessly.
+
+---
+
+### 8. Real-Time Token Streaming Architecture
+- Instead of waiting 5–10 seconds for the entire response to finish generating before showing anything, the backend uses Python **generators (`yield`)**:
+- Each newly predicted word/token is immediately sent to the Streamlit UI, displaying an animated cursor (`▌`) with instant, interactive response perception.
 
 ---
 
@@ -185,7 +254,8 @@ RAG PDF CHATBOT/
 ├── .env                        # Local runtime environment settings (ignored by git)
 ├── .env.example                # Configuration template
 ├── assets/                     # Live application screenshots
-│   └── frontend_ui.png
+│   ├── frontend_ui.png         # Active Q&A, source citations, telemetry, and actions
+│   └── model_switcher_ui.png   # Dynamic GGUF model dropdown switcher & welcome hub
 ├── chat_history/               # Persistent JSON chat sessions on disk
 │   └── chat_*.json
 ├── chroma_db/                  # Persistent ChromaDB vector store directory
@@ -368,4 +438,3 @@ N_GPU_LAYERS=-1
 ## 📄 License
 
 This project is open-source and licensed under the [MIT License](LICENSE).
-
