@@ -133,7 +133,7 @@ flowchart TD
 ### Main Learning Dashboard & Multi-Folder Scoping
 The frontend features a modern glassmorphism UI with multi-session chat persistence, subject-based folder filtering, real-time token streaming, dynamic model switching, source citations, execution telemetry, and action toolbars:
 
-![DocMind Streamlit Live UI](assets/frontend_ui.png)
+[DocMind Streamlit Live UI] model_switcher_
 
 ---
 
