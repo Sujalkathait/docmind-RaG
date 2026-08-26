@@ -21,7 +21,7 @@
 | **System Prompt Engine** | **DocMind 30-Rule Pedagogical Framework**: Strict answer-only adherence, notes-first grounding, multi-scenario routing, and token efficiency |
 | **Embedding Model** | **BGE-small-en-v1.5** (384-dimensional dense vectors via `sentence-transformers`) |
 | **Vector Database** | **ChromaDB** (Persistent on disk in `chroma_db/`) |
-| **Frontend** | Streamlit + Dynamic Model Switcher + Glassmorphism UI + Mermaid.js Flowchart Engine |
+| **Frontend Architecture** | Streamlit + Modular UI Layer (`ui/`) + Dynamic Model Switcher + Glassmorphism UI + Mermaid.js Flowchart Engine |
 | **Privacy & Cost** | **100% Offline, Zero API Keys, 100% Free & Private** |
 
 ---
@@ -109,9 +109,13 @@ DocMind is configured with an intelligent rule framework to prevent hallucinatio
 
 ```mermaid
 flowchart TD
-    subgraph Client ["💻 Interactive Frontend (Streamlit)"]
-        UI["Chat Interface & Glassmorphism Dashboard"]
-        Stream["Real-Time Token Streaming Engine"]
+    subgraph Client ["💻 Modular Frontend (Streamlit + ui/)"]
+        App["app.py (Main Controller)"]
+        Sidebar["ui/sidebar.py (4-Tab Sidebar)"]
+        ChatView["ui/chat_view.py (Streaming Chat View)"]
+        Renderer["ui/message_renderer.py & ui/mermaid.py"]
+        IngestionUI["ui/ingestion.py (Upload Pipeline)"]
+        Styles["ui/styles.py (Dark Theme & CSS)"]
     end
 
     subgraph Storage ["📁 Local Storage & Vector Database"]
@@ -120,24 +124,29 @@ flowchart TD
         History[("Chat Sessions (chat_history/*.json)")]
     end
 
-    subgraph Pipeline ["⚙️ RAG Processing Pipeline"]
-        Loader["PyMuPDF (fitz) Text Extraction"]
-        Chunker["Recursive Sliding Chunking (800 / 120)"]
-        Embedder["BGE-small-en-v1.5 Dense Embeddings (384D)"]
-        Budgeter["Context Length & Token Budget Manager"]
+    subgraph Pipeline ["⚙️ Backend RAG Engine (core/)"]
+        Loader["core/pdf_loader.py (PyMuPDF Text Extraction)"]
+        Chunker["core/chunker.py (Recursive Sliding Chunker)"]
+        Embedder["core/embedder.py (BGE-small-en-v1.5 Dense Embeddings)"]
+        VStore["core/vector_store.py (ChromaDB Client & Folder Scoping)"]
+        ChatMgr["core/chat_manager.py (Session Storage & Atomic JSON)"]
     end
 
-    subgraph LLMEngine ["🧠 Local GGUF Inference (llama.cpp)"]
-        Prompts["DocMind 30-Rule System Prompt"]
+    subgraph LLMEngine ["🧠 Local GGUF Inference (core/llm.py)"]
+        Prompts["config.py (DocMind 30-Rule Framework)"]
+        LLM["core/llm.py (llama-cpp-python Engine)"]
         SmolLM["SmolLM2-360M (~258 MB)"]
         Qwen["Qwen2.5-3B (~2.0 GB)"]
     end
 
-    PDFs --> Loader --> Chunker --> Embedder --> Chroma
-    UI --> Embedder
-    Chroma --> Budgeter
-    Budgeter --> Prompts --> SmolLM & Qwen --> Stream --> UI
-    UI --> History
+    App --> Styles & Sidebar & ChatView
+    Sidebar --> IngestionUI
+    IngestionUI --> PDFs --> Loader --> Chunker --> Embedder --> VStore --> Chroma
+    ChatView --> Embedder
+    Chroma --> VStore --> LLM
+    LLM --> Prompts --> SmolLM & Qwen
+    LLM --> ChatView --> Renderer
+    ChatView --> ChatMgr --> History
 ```
 
 ---
@@ -246,10 +255,10 @@ flowchart LR
 
 ```text
 RAG PDF CHATBOT/
-├── app.py                      # Streamlit Frontend (Chat UI, Model Switcher, Notes Explorer)
+├── app.py                      # Main Streamlit Application Controller (Clean orchestrator)
 ├── config.py                   # System parameters, DocMind System Prompts, and model configs
 ├── download_model.py           # Interactive downloader for SmolLM2 360M & Qwen2.5 3B models
-├── run.py                      # One-click launcher script
+├── run.py                      # One-click launcher script (detects venv automatically)
 ├── requirements.txt            # Python package dependencies
 ├── .env                        # Local runtime environment settings (ignored by git)
 ├── .env.example                # Configuration template
@@ -267,6 +276,14 @@ RAG PDF CHATBOT/
 │   ├── vector_store.py         # ChromaDB client, folder scoping & similarity search
 │   ├── llm.py                  # Dual-model inference, dynamic switching & context budgeting
 │   └── chat_manager.py         # Multi-session disk persistence (create, pin, rename, delete)
+├── ui/                         # Modular Frontend & UI Components
+│   ├── __init__.py             # UI Package initializer
+│   ├── styles.py               # Dark theme CSS injection & typography
+│   ├── mermaid.py              # Mermaid diagram sanitizer & interactive PNG/SVG exporter
+│   ├── message_renderer.py     # Markdown message parsing & zero-reload action toolbars
+│   ├── ingestion.py            # PDF upload, chunking & embedding pipeline with progress
+│   ├── sidebar.py              # 4-Tab sidebar (Chats, Notes, Upload, Manage)
+│   └── chat_view.py            # Main chat screen, scope bar, message loop & RAG streaming
 ├── models/                     # GGUF model storage (SmolLM2-360M / Qwen2.5-3B)
 └── pdfs/                       # Uploaded PDF documents organized by category folder
     ├── General/
@@ -276,30 +293,27 @@ RAG PDF CHATBOT/
 
 ---
 
-## 🖥️ Frontend & Backend Architecture
+## 🖥️ Modular Frontend & Backend Architecture
 
-### Frontend Features:
-1. **Sidebar Control Hub**:
-   - **Chat Conversations Tab**: Manage multi-turn sessions, pin important topics, rename chats, or delete logs.
-   - **Notes & Folders Explorer**: Inspect folder hierarchies, document counts, chunk statistics, and remove individual files.
-   - **Upload Ingestion Tab**: Upload multi-page PDF documents into category folders with real-time progress indicators.
-   - **⚙️ Manage Tab**: Switch active models on the fly, inspect installed model sizes, or download new models with a live progress bar.
-   - **System Status Card**: Real-time telemetry displaying active model name, installed model counts, GPU layers, and context window.
-2. **Dynamic Model & Search Scope Selector**:
-   - Instant switching between installed GGUF models from a top dropdown.
-   - Multiselect allowing searches across `"All"` documents or scoped to specific subjects (e.g. `OS` + `DBMS`).
-3. **Real-Time Token Streaming**:
-   - Streams response tokens in real-time with an animated cursor (`▌`) for zero perceived latency.
-4. **Message Action Bar & Timestamps**:
-   - 📋 **Copy**: Direct clipboard copy with instant visual confirmation (`Copied!`).
-   - 👍 **Like** & 👎 **Dislike**: Feedback rating buttons for student evaluation.
-   - 🕒 **Timestamps**: Real-time display of message delivery time (`🕒 01:23 PM`).
-   - 📎 **Metadata Badges**: Cites source document names, retrieval folder scopes, and generation latency (`⏱️ 0.8s`).
-5. **Interactive Mermaid.js Diagram Engine**:
-   - Renders live flowcharts on demand with export options:
-     - 💾 **Save PNG**: High-resolution canvas export to downloads.
-     - 📥 **Save SVG**: Lossless vector graphic export.
-     - 📋 **Copy Code**: One-click Mermaid syntax copying.
+### 1. Modular UI Layer (`ui/`):
+- **[`ui/styles.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/ui/styles.py)**: Injects the custom dark gradient CSS theme, typography (`Plus Jakarta Sans`), status badges, and styled tables.
+- **[`ui/mermaid.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/ui/mermaid.py)**: Cleans and renders Mermaid flowcharts with interactive **Save PNG (2x High-DPI)**, **Save SVG**, and **Copy Code** toolbar.
+- **[`ui/message_renderer.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/ui/message_renderer.py)**: Parses rich Markdown responses and provides zero-reload copy and feedback buttons.
+- **[`ui/ingestion.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/ui/ingestion.py)**: Coordinates PDF upload ingestion (extract -> chunk -> embed -> store) with live progress tracking.
+- **[`ui/sidebar.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/ui/sidebar.py)**: Provides 4 navigation tabs:
+  1. **💬 Chats Tab**: Multi-session management, chat pinning, renaming, and deletion.
+  2. **📁 Notes & Folders Tab**: Folder explorer, document chunk counters, and file management.
+  3. **📤 Upload Tab**: Category-based PDF file uploader.
+  4. **⚙️ Manage Tab**: Model selector, in-app model downloader with download speed tracker, and data reset buttons.
+- **[`ui/chat_view.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/ui/chat_view.py)**: Manages header branding, multi-folder search scoping, chat message loops, and real-time streaming RAG responses.
+
+### 2. Backend Engine (`core/`):
+- **[`core/pdf_loader.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/core/pdf_loader.py)**: Extracts text from PDFs using `pymupdf` (`fitz`).
+- **[`core/chunker.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/core/chunker.py)**: Splits text into overlapping 800-character chunks with `langchain-text-splitters`.
+- **[`core/embedder.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/core/embedder.py)**: Generates 384D dense embeddings using `BAAI/bge-small-en-v1.5`.
+- **[`core/vector_store.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/core/vector_store.py)**: Manages persistent ChromaDB vector storage, folder metadata filters, and similarity queries.
+- **[`core/llm.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/core/llm.py)**: Executes local GGUF models with `llama-cpp-python`, ChatML prompt assembly, context window budgeting, and token streaming.
+- **[`core/chat_manager.py`](file:///c:/Users/LENOVO/Desktop/python/learning%20chatbot/RAG%20PDF%20CHATBOT/core/chat_manager.py)**: Atomic disk persistence for chat histories in JSON format.
 
 ---
 
@@ -309,11 +323,12 @@ RAG PDF CHATBOT/
 sequenceDiagram
     autonumber
     actor Student
-    participant UI as Streamlit Frontend (app.py)
+    participant UI as Chat View (ui/chat_view.py)
     participant Embed as Embedder (core/embedder.py)
     participant VDB as ChromaDB (core/vector_store.py)
     participant LLM as LLM Engine (core/llm.py)
-    participant Disk as Chat History (chat_history/)
+    participant Render as Message Renderer (ui/message_renderer.py)
+    participant Disk as Chat History (core/chat_manager.py)
 
     Student->>UI: Types question (e.g. "What is SQL in 5 lines?")
     UI->>UI: Renders user bubble with timestamp 🕒
@@ -328,7 +343,7 @@ sequenceDiagram
         LLM-->>UI: Yields token chunk ("SQL", " stands", " for", ...)
         UI->>UI: Updates live text placeholder ("▌")
     end
-    UI->>UI: render_message_content() (Parses Markdown, Tables, Mermaid)
+    UI->>Render: render_message_content() (Parses Markdown, Tables, Mermaid)
     UI->>Disk: add_message(role="assistant", content, sources, exec_time)
     Disk-->>UI: Session JSON saved atomically
     UI->>Student: Displays formatted answer + badges + Copy/Like/Dislike toolbar
