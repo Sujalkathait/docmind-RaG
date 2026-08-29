@@ -102,8 +102,22 @@ def get_effective_model_path() -> str:
     return MODEL_PATH
 
 
+def _get_optimal_threads() -> int:
+    """Calculates optimal CPU thread count for fast inference without cache thrashing."""
+    if N_THREADS > 0:
+        return N_THREADS
+    cpu_cnt = os.cpu_count() or 4
+    # Sweet spot for llama.cpp on multi-core CPUs is 6-8 threads
+    if cpu_cnt >= 8:
+        return min(8, cpu_cnt - 2)
+    elif cpu_cnt >= 6:
+        return min(6, cpu_cnt - 1)
+    else:
+        return max(2, cpu_cnt)
+
+
 def _get_model() -> Any:
-    """Lazily loads and caches the GGUF model with configured context window."""
+    """Lazily loads and permanently caches the GGUF model in RAM."""
     global _llm
     if not _HAS_LLAMA_CPP or Llama is None:
         raise ImportError(
@@ -124,7 +138,7 @@ def _get_model() -> Any:
         except Exception:
             return _llm
 
-    n_threads = N_THREADS if N_THREADS > 0 else max(4, (os.cpu_count() or 4) - 2)
+    n_threads = _get_optimal_threads()
 
     _llm = Llama(
         model_path=effective_path,
@@ -132,6 +146,8 @@ def _get_model() -> Any:
         n_gpu_layers=N_GPU_LAYERS,
         n_batch=N_BATCH,
         n_threads=n_threads,
+        n_threads_batch=n_threads,
+        use_mmap=True,
         verbose=False,
     )
 
@@ -157,7 +173,38 @@ def get_model_info() -> dict:
         "n_ctx": N_CTX,
         "n_gpu_layers": N_GPU_LAYERS,
         "n_batch": N_BATCH,
+        "n_threads": _get_optimal_threads(),
     }
+
+
+def get_dynamic_max_tokens(prompt: str) -> int:
+    """
+    Dynamically sizes MAX_TOKENS (256 - 1024) based on query complexity.
+    Prevents CPU rambling and cuts generation time by up to 75%.
+    """
+    p_lower = prompt.lower().strip()
+    
+    # 1. Short / Direct / Output / Definition queries (256 - 384 tokens)
+    short_triggers = [
+        "what is", "define", "definition", "meaning of", "output", "what does",
+        "short", "brief", "one line", "name the", "list the", "who is", "which is",
+        "syntax", "what are the"
+    ]
+    if any(p_lower.startswith(t) or f" {t} " in p_lower for t in short_triggers):
+        if "detailed" not in p_lower and "explain" not in p_lower and "code and" not in p_lower:
+            return 384
+
+    # 2. Deep / Exam / Multi-part / Comprehensive queries (768 - 1024 tokens)
+    complex_triggers = [
+        "detailed", "deep explanation", "in detail", "explain step by step",
+        "exam answer", "5 marks", "10 marks", "code and dry run", "dry run and code",
+        "implement and", "comprehensive", "full tutorial", "write a complete"
+    ]
+    if any(t in p_lower for t in complex_triggers):
+        return 1024
+
+    # 3. Standard queries (Explanation, difference, dry run, single code snippet) (512 tokens)
+    return 512
 
 
 def _assemble_chatml(
@@ -166,7 +213,10 @@ def _assemble_chatml(
     history: list[dict] | None = None,
     model_path: str = "",
 ) -> str:
-    """Assembles prompt into ChatML format with model-specific system prompt and multi-turn history."""
+    """
+    Assembles prompt into ChatML format with concise system prompt,
+    relevant context, and minimal historical turns.
+    """
     effective_model = model_path or get_effective_model_path()
     system_prompt = get_system_prompt(effective_model)
     is_smollm = "smollm" in effective_model.lower() or "360m" in effective_model.lower()
@@ -176,18 +226,18 @@ def _assemble_chatml(
     else:
         user_content = question
 
-    # Multi-turn ChatML turns
+    # System prompt turn
     turns = [f"<|im_start|>system\n{system_prompt}<|im_end|>\n"]
 
-    # Append recent conversation turns (up to last 6 turns)
+    # Append minimal recent conversation turns (last 2 turns max: 1 user + 1 assistant)
     if history:
-        recent_history = history[-6:]
+        recent_history = history[-2:]
         for msg in recent_history:
             role = msg.get("role")
             content = msg.get("content", "").strip()
             if role in ("user", "assistant") and content:
-                # Truncate very long previous responses to conserve token budget
-                max_hist_len = 600 if is_smollm else 1200
+                # Truncate prior assistant answers to avoid re-evaluating long outputs
+                max_hist_len = 180 if is_smollm else 250
                 if len(content) > max_hist_len:
                     content = content[:max_hist_len] + "..."
                 turns.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
@@ -207,36 +257,43 @@ def _trim_context_to_budget(
     model_path: str = "",
 ) -> str:
     """
-    Ensures that (prompt_tokens + max_tokens) <= N_CTX.
-    If context is too large, trims chunks progressively from the bottom.
+    Fast budget check: ensures (prompt_tokens + max_tokens) <= N_CTX.
+    Avoids repeated slow llm.tokenize() calls via character-length heuristics.
     """
     if not context:
         return ""
 
-    test_prompt = _assemble_chatml(question, context, history, model_path=model_path)
-    prompt_tokens = len(llm.tokenize(test_prompt.encode("utf-8")))
-
-    # Safe budget: leave at least max_tokens + 64 tokens headroom
+    # Safe headroom
     max_allowed_prompt_tokens = max(512, N_CTX - max_tokens - 64)
+    max_allowed_chars = int(max_allowed_prompt_tokens * 3.2)
 
+    test_prompt = _assemble_chatml(question, context, history, model_path=model_path)
+    
+    # Fast path: character count is well within safety margin
+    if len(test_prompt) <= max_allowed_chars:
+        return context
+
+    # Precise single-pass tokenization check
+    prompt_tokens = len(llm.tokenize(test_prompt.encode("utf-8")))
     if prompt_tokens <= max_allowed_prompt_tokens:
         return context
 
+    # Over budget: progressively drop chunks from the bottom
     chunks = context.split("\n\n---\n\n")
     while len(chunks) > 1:
         chunks.pop()
         trimmed = "\n\n---\n\n".join(chunks)
         test_prompt = _assemble_chatml(question, trimmed, history, model_path=model_path)
+        if len(test_prompt) <= max_allowed_chars:
+            return trimmed
         if len(llm.tokenize(test_prompt.encode("utf-8"))) <= max_allowed_prompt_tokens:
             return trimmed
 
     if chunks:
         single = chunks[0]
-        while len(single) > 200:
-            single = single[: int(len(single) * 0.75)]
-            test_prompt = _assemble_chatml(question, single, history, model_path=model_path)
-            if len(llm.tokenize(test_prompt.encode("utf-8"))) <= max_allowed_prompt_tokens:
-                return single
+        if len(single) > 400:
+            single = single[:400]
+        return single
 
     return ""
 
@@ -245,27 +302,32 @@ def generate(
     prompt: str,
     context: str = "",
     history: list[dict] | None = None,
-    max_tokens: int = MAX_TOKENS,
+    max_tokens: int | None = None,
     temperature: float = TEMPERATURE,
     stream: bool = False,
     **kwargs,
 ):
     """
-    Generates a response using active GGUF model with multi-turn history and context budgeting.
+    Generates a response using active GGUF model with dynamic token scaling and context budgeting.
     """
     llm = _get_model()
     effective_path = get_effective_model_path()
 
-    # Trim context if needed to strictly protect generation budget
-    budgeted_context = _trim_context_to_budget(llm, prompt, context, max_tokens, history, model_path=effective_path)
+    # Dynamic token sizing if not explicitly supplied
+    effective_max_tokens = max_tokens if max_tokens is not None else get_dynamic_max_tokens(prompt)
 
-    # Build the full multi-turn ChatML prompt with tailored system prompt
+    # Trim context if needed
+    budgeted_context = _trim_context_to_budget(
+        llm, prompt, context, effective_max_tokens, history, model_path=effective_path
+    )
+
+    # Build the full ChatML prompt
     full_prompt = _assemble_chatml(prompt, budgeted_context, history, model_path=effective_path)
 
     if stream:
-        return _stream_generate(llm, full_prompt, max_tokens, temperature)
+        return _stream_generate(llm, full_prompt, effective_max_tokens, temperature)
     else:
-        return _batch_generate(llm, full_prompt, max_tokens, temperature)
+        return _batch_generate(llm, full_prompt, effective_max_tokens, temperature)
 
 
 def _batch_generate(

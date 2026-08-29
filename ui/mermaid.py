@@ -19,33 +19,231 @@ def _clean_node_label(raw: str) -> str:
             break
         txt = txt[1:-1].strip()
 
-    # Replace inner double quotes with single quotes or remove
+    # Replace inner double quotes with single quotes
     txt = txt.replace('"', "'")
     # Replace inner square brackets with parentheses to prevent nested bracket syntax errors
     txt = txt.replace("[", "(").replace("]", ")")
-    # Clean redundant quotation comma patterns like ', ' -> ', '
-    txt = re.sub(r"'\s*,\s*'", ", ", txt)
-    # Replace backslashes
+    # Replace backslashes with forward slashes
     txt = txt.replace("\\", "/")
+    # Remove newlines inside labels
+    txt = txt.replace("\n", " ").replace("\r", "")
     return txt.strip()
+
+
+def parse_and_repair_nodes_in_segment(segment: str) -> list[str]:
+    """
+    Parses a string segment (between arrows) into one or more repaired Mermaid node tokens.
+    Handles mismatched brackets (e.g. B(Text]), complex labels with inner brackets/spaces,
+    and bare IDs.
+    """
+    segment = segment.strip()
+    if not segment:
+        return []
+
+    tokens = []
+    i = 0
+    n = len(segment)
+
+    while i < n:
+        # Skip whitespace
+        while i < n and segment[i].isspace():
+            i += 1
+        if i >= n:
+            break
+
+        # Check if an identifier starts at i: [A-Za-z0-9_]+
+        m_id = re.match(r"^[A-Za-z0-9_]+", segment[i:])
+        if not m_id:
+            # Not a standard ID, might be punctuation or unquoted text like "..."
+            next_space = segment.find(" ", i)
+            if next_space == -1:
+                chunk = segment[i:]
+                i = n
+            else:
+                chunk = segment[i:next_space]
+                i = next_space + 1
+            cleaned = _clean_node_label(chunk)
+            if cleaned:
+                tokens.append(f'Node["{cleaned}"]')
+            continue
+
+        node_id = m_id.group(0)
+        i += len(node_id)
+
+        # Skip whitespace between node_id and opening bracket (e.g. NodeA [Label])
+        while i < n and segment[i].isspace():
+            i += 1
+
+        if i >= n:
+            tokens.append(node_id)
+            break
+
+        # Check for opening bracket shapes
+        # 1. Database / Cylinder: [( ... )]
+        if segment[i:i+2] == "[(":
+            i += 2
+            end_idx = segment.find(")]", i)
+            if end_idx != -1:
+                lbl = segment[i:end_idx]
+                i = end_idx + 2
+            else:
+                m_end = re.search(r"[\)\]]", segment[i:])
+                if m_end:
+                    lbl = segment[i:i+m_end.start()]
+                    i = i + m_end.end()
+                else:
+                    lbl = segment[i:]
+                    i = n
+            tokens.append(f'{node_id}[("{_clean_node_label(lbl)}")]')
+
+        # 2. Stadium / Pill: ([ ... ])
+        elif segment[i:i+2] == "([":
+            i += 2
+            end_idx = segment.find("])", i)
+            if end_idx != -1:
+                lbl = segment[i:end_idx]
+                i = end_idx + 2
+            else:
+                m_end = re.search(r"[\)\]]", segment[i:])
+                if m_end:
+                    lbl = segment[i:i+m_end.start()]
+                    i = i + m_end.end()
+                else:
+                    lbl = segment[i:]
+                    i = n
+            tokens.append(f'{node_id}(["{_clean_node_label(lbl)}"])')
+
+        # 3. Subroutine: [[ ... ]]
+        elif segment[i:i+2] == "[[":
+            i += 2
+            end_idx = segment.find("]]", i)
+            if end_idx != -1:
+                lbl = segment[i:end_idx]
+                i = end_idx + 2
+            else:
+                m_end = re.search(r"\]", segment[i:])
+                if m_end:
+                    lbl = segment[i:i+m_end.start()]
+                    i = i + m_end.end()
+                else:
+                    lbl = segment[i:]
+                    i = n
+            tokens.append(f'{node_id}[["{_clean_node_label(lbl)}"]]')
+
+        # 4. Hexagon: {{ ... }}
+        elif segment[i:i+2] == "{{":
+            i += 2
+            end_idx = segment.find("}}", i)
+            if end_idx != -1:
+                lbl = segment[i:end_idx]
+                i = end_idx + 2
+            else:
+                m_end = re.search(r"\}", segment[i:])
+                if m_end:
+                    lbl = segment[i:i+m_end.start()]
+                    i = i + m_end.end()
+                else:
+                    lbl = segment[i:]
+                    i = n
+            tokens.append(f'{node_id}{{"{_clean_node_label(lbl)}"}}')
+
+        # 5. Circle: (( ... ))
+        elif segment[i:i+2] == "((":
+            i += 2
+            end_idx = segment.find("))", i)
+            if end_idx != -1:
+                lbl = segment[i:end_idx]
+                i = end_idx + 2
+            else:
+                m_end = re.search(r"\)", segment[i:])
+                if m_end:
+                    lbl = segment[i:i+m_end.start()]
+                    i = i + m_end.end()
+                else:
+                    lbl = segment[i:]
+                    i = n
+            tokens.append(f'{node_id}(("{_clean_node_label(lbl)}"))')
+
+        # 6. Decision / Rhombus: { ... }
+        elif segment[i] == "{":
+            i += 1
+            m_end = re.search(r"[\}\]\)]", segment[i:])
+            if m_end:
+                lbl = segment[i:i+m_end.start()]
+                i = i + m_end.end()
+            else:
+                lbl = segment[i:]
+                i = n
+            tokens.append(f'{node_id}{{"{_clean_node_label(lbl)}"}}')
+
+        # 7. Rounded rectangle: ( ... ) or mismatched ( ... ]
+        elif segment[i] == "(":
+            i += 1
+            m_end = re.search(r"[\)\]\}]", segment[i:])
+            if m_end:
+                lbl = segment[i:i+m_end.start()]
+                i = i + m_end.end()
+            else:
+                lbl = segment[i:]
+                i = n
+            tokens.append(f'{node_id}("{_clean_node_label(lbl)}")')
+
+        # 8. Standard rectangle: [ ... ] or mismatched [ ... )
+        elif segment[i] == "[":
+            i += 1
+            # Check if inner quotes are present e.g. ["..."]
+            if i < n and (segment[i] == '"' or segment[i] == "'"):
+                q = segment[i]
+                i += 1
+                end_q = segment.find(q, i)
+                if end_q != -1:
+                    lbl = segment[i:end_q]
+                    i = end_q + 1
+                    if i < n and segment[i] == "]":
+                        i += 1
+                else:
+                    lbl = segment[i:]
+                    i = n
+            else:
+                # Look for closing bracket followed by whitespace/end
+                m_end = re.search(r"(?:\]|\)|\})(?:\s+[A-Za-z0-9_]+|\s*$)", segment[i:])
+                if m_end:
+                    lbl = segment[i:i+m_end.start()]
+                    i = i + m_end.start() + 1
+                else:
+                    m_first_end = re.search(r"[\]\)]", segment[i:])
+                    if m_first_end:
+                        lbl = segment[i:i+m_first_end.start()]
+                        i = i + m_first_end.end()
+                    else:
+                        lbl = segment[i:]
+                        i = n
+            tokens.append(f'{node_id}["{_clean_node_label(lbl)}"]')
+
+        else:
+            tokens.append(node_id)
+
+    return tokens
 
 
 def sanitize_mermaid_code(code: str) -> str:
     """
     Cleans, repairs, and sanitizes LLM-generated Mermaid diagrams,
-    including nested quotes, bracket conflicts, truncated lines, and sequence errors.
+    including mismatched brackets, unclosed nodes, unquoted labels,
+    multi-statement lines, truncated arrows, and sequence diagram errors.
     """
     code = code.strip()
     code = re.sub(r"^```(?:mermaid)?", "", code, flags=re.IGNORECASE).strip()
     code = re.sub(r"```$", "", code).strip()
 
+    # Normalize unicode smart quotes
     code = code.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
 
     raw_lines = [l.rstrip() for l in code.splitlines() if l.strip()]
     if not raw_lines:
         return 'flowchart TD\n    A["Processing Complete"]'
 
-    # Check or prepend header
+    # Valid Mermaid diagram headers
     valid_headers = (
         "graph ", "graph\n", "flowchart ", "flowchart\n",
         "sequencediagram", "statediagram", "statediagram-v2",
@@ -60,7 +258,9 @@ def sanitize_mermaid_code(code: str) -> str:
     is_sequence = "sequencediagram" in raw_lines[0].lower()
     clean_lines = []
 
-    arrow_split_regex = r"(\s*(?:-->|---|==>|-\.->|--\s*\|.*?\|\s*-->|-->\|.*?\|)\s*)"
+    arrow_re = re.compile(
+        r"(\s*(?:-->\|.*?\||--\s*\|.*?\|\s*-->|--\s+[^\-\n>]+\s+-->|-->|---|==>|-\.->|-->>|->>|->|--)\s*)"
+    )
 
     for idx, line in enumerate(raw_lines):
         sline = line.strip()
@@ -71,79 +271,66 @@ def sanitize_mermaid_code(code: str) -> str:
             clean_lines.append(sline)
             continue
 
+        # Comments
         if sline.startswith("%%"):
             clean_lines.append(sline)
             continue
 
+        # Subgraphs and end keywords
+        if re.match(r"^subgraph\b", sline, re.IGNORECASE) or re.match(r"^end\b", sline, re.IGNORECASE):
+            m_sub = re.match(r"^subgraph\s+([A-Za-z0-9_]+)(?:\s*\[\s*\"?(.*?)\"?\s*\])?\s*$", sline, re.IGNORECASE)
+            if m_sub:
+                sg_id = m_sub.group(1)
+                sg_lbl = m_sub.group(2)
+                if sg_lbl:
+                    clean_lines.append(f'    subgraph {sg_id} ["{_clean_node_label(sg_lbl)}"]')
+                else:
+                    clean_lines.append(f"    subgraph {sg_id}")
+            else:
+                clean_lines.append("    " + sline)
+            continue
+
         if is_sequence:
-            # Fix truncated sequence lines ending with arrows: US->> or A-> or B-->
+            # Sequence diagram repair rules
             if re.search(r"(?:->>|-->>|->|-->)\s*$", sline):
                 m = re.match(r"^([A-Za-z0-9_]+)\s*(?:->>|-->>|->|-->)\s*$", sline)
                 if m:
                     actor = m.group(1)
-                    sline = f"    {actor}->>Kernel: Service Request"
+                    sline = f"    {actor}->>Server: Request"
                 else:
                     continue
-
-            # If sequence line has arrow with target but missing colon: "A->>B"
-            elif re.search(
-                r"^[A-Za-z0-9_]+\s*(?:->>|-->>|->|-->)\s*[A-Za-z0-9_]+\s*$", sline
-            ):
+            elif re.search(r"^[A-Za-z0-9_]+\s*(?:->>|-->>|->|-->)\s*[A-Za-z0-9_]+\s*$", sline):
                 sline = sline + ": Process"
 
             if not sline.startswith("    "):
                 sline = "    " + sline
+            clean_lines.append(sline)
 
         else:
             # Flowcharts & graph diagrams
-            # Drop open trailing arrows e.g. A -->
-            if re.search(r"(?:-->|---|==>|-\.->)\s*$", sline):
-                sline = re.sub(r"(?:-->|---|==>|-\.->)\s*$", "", sline).strip()
-                if not sline:
+            # Check for multiple statements separated by semicolons
+            sub_statements = [s.strip() for s in sline.split(";") if s.strip()]
+            for stmt in sub_statements:
+                # Remove dangling trailing arrows
+                stmt = re.sub(r"(?:-->|---|==>|-\.->)\s*$", "", stmt).strip()
+                if not stmt:
                     continue
 
-            # Split line into node definitions and arrow connectors
-            parts = re.split(arrow_split_regex, sline)
-            new_parts = []
-            for part in parts:
-                if not part:
-                    continue
-                # If it's an arrow connector, keep it
-                if re.match(
-                    r"^(?:-->|---|==>|-\.->|--\s*\|.*?\|\s*-->|-->\|.*?\|)$",
-                    part.strip(),
-                ):
-                    new_parts.append(part)
-                else:
-                    # Match node definition e.g. NodeId[Label] or NodeId(Label) or NodeId{Label}
-                    node_match = re.match(
-                        r"^\s*([A-Za-z0-9_]+)\s*([\[\(\{])(.*)([\]\)\}])\s*$", part
-                    )
-                    if node_match:
-                        node_id = node_match.group(1)
-                        open_bracket = node_match.group(2)
-                        raw_label = node_match.group(3)
-                        close_bracket = node_match.group(4)
-
-                        clean_label = _clean_node_label(raw_label)
-
-                        if open_bracket == "{" or close_bracket == "}":
-                            new_parts.append(f'{node_id}{{"{clean_label}"}}')
-                        elif open_bracket == "(" or close_bracket == ")":
-                            new_parts.append(f'{node_id}("{clean_label}")')
-                        else:
-                            new_parts.append(f'{node_id}["{clean_label}"]')
+                # Split by arrows and repair node segments
+                parts = arrow_re.split(stmt)
+                processed_parts = []
+                for part in parts:
+                    if not part or not part.strip():
+                        continue
+                    if arrow_re.match(part):
+                        processed_parts.append(part.strip())
                     else:
-                        bare_match = re.match(r"^\s*([A-Za-z0-9_]+)\s*$", part)
-                        if bare_match:
-                            new_parts.append(bare_match.group(1))
-                        else:
-                            cleaned_part = _clean_node_label(part)
-                            new_parts.append(f'N_{idx}["{cleaned_part}"]' if cleaned_part else part)
+                        nodes = parse_and_repair_nodes_in_segment(part)
+                        if nodes:
+                            processed_parts.append(" ".join(nodes))
 
-            sline = " ".join(new_parts) if new_parts else sline
-
-        clean_lines.append(sline)
+                if processed_parts:
+                    clean_lines.append("    " + " ".join(processed_parts))
 
     if len(clean_lines) <= 1:
         clean_lines.append('    A["Concept Overview"]')
@@ -157,6 +344,7 @@ def render_mermaid(code: str) -> None:
     1. 💾 Save as PNG (High-Res Canvas Export)
     2. 📥 Save as SVG (Vector Download)
     3. 📋 Copy Mermaid Code
+    4. Auto Error Recovery & Fallback Box
     """
     cleaned_code = sanitize_mermaid_code(code)
     escaped_code = (
@@ -189,19 +377,23 @@ def render_mermaid(code: str) -> None:
                 }}
             }});
 
+            function purgeMermaidErrors() {{
+                document.querySelectorAll('[id^="dmermaid"], [id^="mermaid-"], svg[aria-roledescription="error"], .mermaidError, div.error-icon').forEach(el => el.remove());
+            }}
+
             async function drawDiagram() {{
                 const container = document.getElementById('diagram-container');
                 const rawCode = `{escaped_code}`;
                 try {{
                     const id = 'mermaid-svg-' + Math.random().toString(36).substring(2, 9);
                     const {{ svg }} = await mermaid.render(id, rawCode);
-                    // Remove any injected mermaid error containers
-                    document.querySelectorAll('[id^="dmermaid"]').forEach(el => el.remove());
+                    purgeMermaidErrors();
                     container.innerHTML = svg;
                 }} catch (err) {{
                     console.warn('Mermaid rendering fallback:', err);
-                    // Remove mermaid error bomb element injected into document
-                    document.querySelectorAll('[id^="dmermaid"], svg[aria-roledescription="error"]').forEach(el => el.remove());
+                    purgeMermaidErrors();
+                    setTimeout(purgeMermaidErrors, 50);
+                    setTimeout(purgeMermaidErrors, 200);
 
                     container.innerHTML = `
                         <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #cbd5e1; white-space: pre-wrap; overflow-x: auto; width: 100%;">

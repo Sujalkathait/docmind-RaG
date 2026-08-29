@@ -1,6 +1,7 @@
 """
 DocMind RAG — Main Chat View & Execution Engine
 Renders chat interface, search scope selector, conversation stream, and handles RAG queries.
+Optimized for high-speed streaming, dynamic token limits, and detailed timing metrics.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from core.llm import (
     get_model_info,
     get_available_models,
     set_active_model,
+    get_dynamic_max_tokens,
 )
 from core.chat_manager import (
     get_session,
@@ -141,6 +143,8 @@ def render_chat_view() -> None:
         content = msg.get("content", "")
         sources = msg.get("sources", [])
         exec_time = msg.get("execution_time") or msg.get("time")
+        tok_speed = msg.get("tokens_per_sec")
+        ret_time = msg.get("retrieval_time")
         scope = msg.get("folder_scope")
         msg_id = msg.get("id", str(msg_idx))
         feedback = msg.get("feedback")
@@ -165,7 +169,13 @@ def render_chat_view() -> None:
                     for s in sources:
                         badges_html.append(f'<span class="source-badge">📎 {s}</span>')
                 if exec_time:
-                    badges_html.append(f'<span class="timing-badge">⏱️ {exec_time:.2f}s</span>')
+                    timing_str = f"⏱️ {exec_time:.2f}s"
+                    if tok_speed and tok_speed > 0:
+                        timing_str += f" (⚡ {tok_speed:.1f} tok/s)"
+                    title_attr = f"Total: {exec_time:.2f}s"
+                    if ret_time:
+                        title_attr += f" | Retrieval: {ret_time*1000:.0f}ms"
+                    badges_html.append(f'<span class="timing-badge" title="{title_attr}">{timing_str}</span>')
                 if scope and scope != "All":
                     scope_str = ", ".join(scope) if isinstance(scope, list) else str(scope)
                     badges_html.append(f'<span class="scope-badge">📁 {scope_str}</span>')
@@ -174,7 +184,7 @@ def render_chat_view() -> None:
                 if badges_html:
                     st.markdown(" ".join(badges_html), unsafe_allow_html=True)
 
-                # Minimalist Action Toolbar: Copy, Like, Dislike
+                # Action Toolbar: Copy, Like, Dislike
                 render_assistant_actions(content=content, msg_id=msg_id, feedback=feedback)
 
     # ===========================
@@ -217,13 +227,13 @@ def render_chat_view() -> None:
 
         # 3. Generate Assistant Response
         with st.chat_message("assistant"):
-            start_time = time.time()
+            start_total_time = time.time()
 
-            # Step A: Embed Query
+            # Step A: Embed Query & Scoped Retrieval (Timing: t_retrieval)
+            t_ret_start = time.time()
             with st.spinner("🔍 Searching your vector knowledge base..."):
                 query_embedding = embed_query(prompt)
 
-                # Step B: Multi-Folder Scoped Retrieval
                 target_folders = (
                     None
                     if "All" in st.session_state.selected_folders
@@ -235,6 +245,7 @@ def render_chat_view() -> None:
                     top_k=TOP_K,
                     folder=target_folders,
                 )
+            t_retrieval = time.time() - t_ret_start
 
             chunks = results.get("chunks", [])
             metadatas = results.get("metadatas", [])
@@ -245,7 +256,7 @@ def render_chat_view() -> None:
                     "Try broadening your search to 'All' or uploading additional PDF notes."
                 )
                 st.markdown(fallback_response)
-                elapsed = round(time.time() - start_time, 2)
+                elapsed = round(time.time() - start_total_time, 2)
                 add_message(
                     session_id=st.session_state.current_session_id,
                     role="assistant",
@@ -256,32 +267,53 @@ def render_chat_view() -> None:
                     mode="llm",
                 )
             else:
-                # Step C: Assemble context and sources
+                # Step B: Assemble clean context (Timing: t_prompt)
+                t_prompt_start = time.time()
                 sources = []
                 context_parts = []
+                seen_snippets = set()
+
                 for idx, chunk in enumerate(chunks):
+                    clean_chunk = chunk.strip()
+                    # Skip duplicate snippets
+                    chunk_key = clean_chunk[:100]
+                    if chunk_key in seen_snippets:
+                        continue
+                    seen_snippets.add(chunk_key)
+
                     meta = metadatas[idx] if idx < len(metadatas) else {}
                     src = meta.get("source", "Document")
                     folder = meta.get("folder", "General")
-                    context_parts.append(f"[Source: {src} | Folder: {folder}]\n{chunk}")
+                    context_parts.append(f"[Source: {src} | Folder: {folder}]\n{clean_chunk}")
 
                     label = f"{src} ({folder})" if folder != "General" else src
                     if label not in sources:
                         sources.append(label)
 
                 context = "\n\n---\n\n".join(context_parts)
+                t_prompt = time.time() - t_prompt_start
+
+                # Step C: Stream generation with dynamic token limit (Timing: t_gen)
+                dynamic_tokens = get_dynamic_max_tokens(prompt)
                 response_placeholder = st.empty()
                 full_response = ""
+                tok_count = 0
+                first_token_time = None
+                t_gen_start = time.time()
 
                 try:
                     token_stream = generate(
                         prompt=prompt,
                         context=context,
                         history=prior_history,
+                        max_tokens=dynamic_tokens,
                         stream=True,
                     )
 
                     for token in token_stream:
+                        if first_token_time is None:
+                            first_token_time = time.time()
+                        tok_count += 1
                         full_response += token
                         response_placeholder.markdown(full_response + "▌")
 
@@ -295,13 +327,22 @@ def render_chat_view() -> None:
                     with response_placeholder.container():
                         render_message_content(full_response)
 
-                elapsed = round(time.time() - start_time, 2)
+                t_gen_end = time.time()
+                total_elapsed = round(t_gen_end - start_total_time, 2)
+                t_gen_duration = t_gen_end - (first_token_time or t_gen_start)
+                tok_speed = (tok_count / t_gen_duration) if t_gen_duration > 0 else 0.0
 
                 # Badges + Timestamp
                 badges_html = []
                 for s in sources:
                     badges_html.append(f'<span class="source-badge">📎 {s}</span>')
-                badges_html.append(f'<span class="timing-badge">⏱️ {elapsed:.2f}s</span>')
+
+                speed_label = f"⏱️ {total_elapsed:.2f}s"
+                if tok_speed > 0:
+                    speed_label += f" (⚡ {tok_speed:.1f} tok/s)"
+                hover_info = f"Total: {total_elapsed:.2f}s | Retrieval: {t_retrieval*1000:.0f}ms | Prep: {t_prompt*1000:.0f}ms | Gen: {t_gen_duration:.2f}s"
+                badges_html.append(f'<span class="timing-badge" title="{hover_info}">{speed_label}</span>')
+
                 if target_folders:
                     badges_html.append(f'<span class="scope-badge">📁 {", ".join(target_folders)}</span>')
                 ans_time_str = datetime.now().strftime("%I:%M %p")
@@ -315,7 +356,9 @@ def render_chat_view() -> None:
                     role="assistant",
                     content=full_response,
                     sources=sources,
-                    execution_time=elapsed,
+                    execution_time=total_elapsed,
+                    tokens_per_sec=round(tok_speed, 1),
+                    retrieval_time=round(t_retrieval, 4),
                     folder_scope=st.session_state.selected_folders,
                     mode="llm",
                 )

@@ -9,8 +9,11 @@ from config import CHROMA_PATH, COLLECTION_NAME, PDF_FOLDER, TOP_K
 
 DEFAULT_FOLDER = "General"
 
-# Singleton ChromaDB client
+# Singleton ChromaDB client & collection instances
 _client: Any = None
+_collection: Any = None
+_doc_count_cached: int | None = None
+_retrieval_cache: dict[tuple, dict] = {}
 
 
 def _get_client():
@@ -33,9 +36,20 @@ def _get_client():
 
 
 def get_collection():
-    """Gets or creates the main collection."""
+    """Gets or returns cached main collection instance."""
+    global _collection
+    if _collection is not None:
+        return _collection
     client = _get_client()
-    return client.get_or_create_collection(name=COLLECTION_NAME)
+    _collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    return _collection
+
+
+def _invalidate_caches():
+    """Invalidates memory caches when documents or collections are modified."""
+    global _doc_count_cached, _retrieval_cache
+    _doc_count_cached = None
+    _retrieval_cache.clear()
 
 
 def sanitize_folder_name(name: str) -> str:
@@ -91,6 +105,7 @@ def add_document(
         metadatas=metadatas,
     )
 
+    _invalidate_caches()
     return len(chunks)
 
 
@@ -105,19 +120,33 @@ def query(
     folder: str | list[str] | None = None,
 ) -> dict:
     """
-    Queries ChromaDB with folder-scoped filtering.
+    Queries ChromaDB with folder-scoped filtering and in-memory result caching.
     Supports single folder ("OS"), multiple folders (["OS", "DBMS"]), or None/All.
     Returns dict with 'chunks', 'metadatas', 'distances'.
     """
     collection = get_collection()
+    total_count = get_document_count()
 
-    if collection.count() == 0:
+    if total_count == 0:
         return {"chunks": [], "metadatas": [], "distances": []}
+
+    # Normalize folder key for caching
+    if isinstance(folder, list):
+        folder_key = tuple(sorted(folder))
+    elif isinstance(folder, str):
+        folder_key = (folder,)
+    else:
+        folder_key = None
+
+    # Fast hash representation of query embedding for cache lookup
+    cache_key = (tuple(query_embedding[:8]), len(query_embedding), top_k, folder_key)
+    if cache_key in _retrieval_cache:
+        return _retrieval_cache[cache_key]
 
     # Resolve folder filter
     where_filter = _build_folder_filter(folder, collection)
 
-    n_results = min(top_k, collection.count())
+    n_results = min(top_k, total_count)
     query_params = {
         "query_embeddings": [query_embedding],
         "n_results": n_results,
@@ -131,7 +160,14 @@ def query(
     metadatas = results["metadatas"][0] if results.get("metadatas") else []
     distances = results["distances"][0] if results.get("distances") else []
 
-    return {"chunks": chunks, "metadatas": metadatas, "distances": distances}
+    out = {"chunks": chunks, "metadatas": metadatas, "distances": distances}
+    
+    # Cache up to 128 recent queries
+    if len(_retrieval_cache) > 128:
+        _retrieval_cache.pop(next(iter(_retrieval_cache)))
+    _retrieval_cache[cache_key] = out
+
+    return out
 
 
 def _build_folder_filter(folder, collection) -> dict | None:
@@ -178,7 +214,7 @@ def get_all_folders() -> list[dict]:
     }
 
     try:
-        if collection.count() > 0:
+        if get_document_count() > 0:
             results = collection.get(include=["metadatas"])
             metadatas = results.get("metadatas", []) or []
 
@@ -230,7 +266,7 @@ def get_folder_documents(folder_name: str | None = None) -> list[dict]:
 
     # 1. Gather indexed documents from ChromaDB
     try:
-        if collection.count() > 0:
+        if get_document_count() > 0:
             if clean_target:
                 results = collection.get(
                     where={"folder": clean_target}, include=["metadatas"]
@@ -309,6 +345,7 @@ def create_folder(folder_name: str) -> dict:
     """Creates a new folder directory under pdfs/."""
     clean_name = sanitize_folder_name(folder_name)
     os.makedirs(os.path.join(PDF_FOLDER, clean_name), exist_ok=True)
+    _invalidate_caches()
     return {"success": True, "folder": clean_name}
 
 
@@ -329,6 +366,7 @@ def delete_folder(folder_name: str) -> dict:
         except Exception as e:
             print(f"Warning removing directory '{folder_path}': {e}")
 
+    _invalidate_caches()
     return {"success": True, "folder": clean_name}
 
 
@@ -357,12 +395,13 @@ def delete_document(filename: str, folder: str = None) -> dict:
         except Exception:
             pass
 
+    _invalidate_caches()
     return {"success": True, "filename": safe_filename}
 
 
 def clear_all() -> dict:
     """Clears all documents from ChromaDB and the pdfs/ directory."""
-    global _client
+    global _client, _collection
     client = _get_client()
 
     try:
@@ -370,9 +409,11 @@ def clear_all() -> dict:
     except Exception:
         pass
 
+    _collection = None
     _client = None
     client = _get_client()
-    client.get_or_create_collection(name=COLLECTION_NAME)
+    _collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    _invalidate_caches()
 
     if os.path.exists(PDF_FOLDER):
         for root, dirs, files in os.walk(PDF_FOLDER, topdown=False):
@@ -392,8 +433,12 @@ def clear_all() -> dict:
 
 
 def get_document_count() -> int:
-    """Returns the total number of chunks in the collection."""
+    """Returns the cached or queried total number of chunks in the collection."""
+    global _doc_count_cached
+    if _doc_count_cached is not None:
+        return _doc_count_cached
     try:
-        return get_collection().count()
+        _doc_count_cached = get_collection().count()
+        return _doc_count_cached
     except Exception:
         return 0

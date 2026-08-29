@@ -49,6 +49,8 @@ class ChatMessage:
     timestamp: float
     sources: list[str] = field(default_factory=list)
     execution_time: float | None = None
+    tokens_per_sec: float | None = None
+    retrieval_time: float | None = None
     folder_scope: Any = "All"
     feedback: str | None = None  # "liked" | "disliked" | None
     mode: str | None = None  # "llm" | "direct" | None
@@ -65,6 +67,8 @@ class ChatMessage:
             timestamp=data.get("timestamp", time.time()),
             sources=data.get("sources", []),
             execution_time=data.get("execution_time") or data.get("time"),
+            tokens_per_sec=data.get("tokens_per_sec"),
+            retrieval_time=data.get("retrieval_time"),
             folder_scope=data.get("folder_scope", "All"),
             feedback=data.get("feedback"),
             mode=data.get("mode"),
@@ -206,6 +210,8 @@ def add_message(
     folder_scope: Any = "All",
     feedback: str | None = None,
     mode: str | None = None,
+    tokens_per_sec: float | None = None,
+    retrieval_time: float | None = None,
 ) -> dict | None:
     """
     Appends a message to the specified session, auto-generating title if first user message.
@@ -222,6 +228,8 @@ def add_message(
         timestamp=time.time(),
         sources=sources or [],
         execution_time=execution_time,
+        tokens_per_sec=tokens_per_sec,
+        retrieval_time=retrieval_time,
         folder_scope=folder_scope,
         feedback=feedback,
         mode=mode,

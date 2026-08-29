@@ -20,10 +20,15 @@ def render_message_content(content: str) -> None:
     if not content:
         return
 
-    if content.count("```mermaid") > content.count("```") // 2:
+    # Check for unclosed mermaid code block (e.g. streaming or truncated)
+    lower_content = content.lower()
+    mermaid_count = lower_content.count("```mermaid")
+    total_fence_count = content.count("```")
+    if mermaid_count > 0 and total_fence_count % 2 != 0:
         content = content.rstrip() + "\n```"
 
-    mermaid_pattern = r'```mermaid\s*([\s\S]*?)\s*```'
+    # Match case-insensitively for ```mermaid ... ``` blocks
+    mermaid_pattern = r'(?i)```mermaid\s*([\s\S]*?)\s*```'
     parts = re.split(mermaid_pattern, content)
 
     if len(parts) == 1:
