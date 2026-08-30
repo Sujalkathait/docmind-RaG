@@ -266,7 +266,9 @@ def render_chat_view() -> None:
                     folder_scope=st.session_state.selected_folders,
                     mode="llm",
                 )
+                st.rerun()
             else:
+
                 # Step B: Assemble clean context (Timing: t_prompt)
                 t_prompt_start = time.time()
                 sources = []

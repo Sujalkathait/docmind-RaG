@@ -207,6 +207,9 @@ def get_dynamic_max_tokens(prompt: str) -> int:
     return 512
 
 
+STOP_TOKENS = ["<|im_end|>", "<|im_start|>", "<|endoftext|>", "</s>"]
+
+
 def _assemble_chatml(
     question: str,
     context: str = "",
@@ -221,10 +224,14 @@ def _assemble_chatml(
     system_prompt = get_system_prompt(effective_model)
     is_smollm = "smollm" in effective_model.lower() or "360m" in effective_model.lower()
 
+    # Sanitize user question to prevent accidental ChatML tag injection
+    clean_question = (question or "").replace("<|im_start|>", "").replace("<|im_end|>", "").strip()
+
     if context:
-        user_content = f"Context from study notes:\n{context}\n\n{question}"
+        clean_context = context.replace("<|im_start|>", "").replace("<|im_end|>", "")
+        user_content = f"Context from study notes:\n{clean_context}\n\n{clean_question}"
     else:
-        user_content = question
+        user_content = clean_question
 
     # System prompt turn
     turns = [f"<|im_start|>system\n{system_prompt}<|im_end|>\n"]
@@ -236,6 +243,7 @@ def _assemble_chatml(
             role = msg.get("role")
             content = msg.get("content", "").strip()
             if role in ("user", "assistant") and content:
+                content = content.replace("<|im_start|>", "").replace("<|im_end|>", "")
                 # Truncate prior assistant answers to avoid re-evaluating long outputs
                 max_hist_len = 180 if is_smollm else 250
                 if len(content) > max_hist_len:
@@ -340,7 +348,7 @@ def _batch_generate(
         temperature=temperature,
         top_p=TOP_P,
         repeat_penalty=REPEAT_PENALTY,
-        stop=["<|im_end|>", "<|im_start|>"],
+        stop=STOP_TOKENS,
         echo=False,
     )
 
@@ -358,7 +366,7 @@ def _stream_generate(
         temperature=temperature,
         top_p=TOP_P,
         repeat_penalty=REPEAT_PENALTY,
-        stop=["<|im_end|>", "<|im_start|>"],
+        stop=STOP_TOKENS,
         echo=False,
         stream=True,
     )
@@ -367,3 +375,4 @@ def _stream_generate(
         token = chunk["choices"][0]["text"]
         if token:
             yield token
+

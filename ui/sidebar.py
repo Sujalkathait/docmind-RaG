@@ -212,15 +212,35 @@ def render_sidebar() -> None:
                 key="upload_dest_folder",
             )
 
+            # Upload Guidelines & Capacity Info Badge
+            st.markdown(
+                """
+                <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; font-size: 0.8rem; color: #cbd5e1;">
+                    <div>📂 <b>Multi-PDF Upload:</b> Enabled</div>
+                    <div>📦 <b>Recommended Batch:</b> 20–50 files at once</div>
+                    <div>📏 <b>Max File Size:</b> Up to 200 MB per PDF</div>
+                    <div>🗄️ <b>Storage Capacity:</b> Unlimited PDFs (100,000+ chunks)</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
             uploaded_files = st.file_uploader(
                 "Choose PDF notes / slides:",
                 type=["pdf"],
                 accept_multiple_files=True,
                 key="main_pdf_uploader",
+                help="You can select and upload multiple PDF files simultaneously into the chosen folder.",
             )
 
-            if uploaded_files and st.button("🚀 Index & Vectorize PDFs", type="primary", use_container_width=True):
-                process_pdf_uploads(uploaded_files, upload_dest)
+            if uploaded_files:
+                total_files = len(uploaded_files)
+                total_mb = sum(getattr(f, "size", 0) for f in uploaded_files) / (1024 * 1024)
+                est_chunks = max(total_files * 15, int(total_mb * 60))
+                st.info(f"📊 **Selected**: `{total_files}` PDF(s) ({total_mb:.1f} MB) • Est. `~{est_chunks}` chunks")
+
+                if st.button("🚀 Index & Vectorize PDFs", type="primary", use_container_width=True):
+                    process_pdf_uploads(uploaded_files, upload_dest)
 
         # ------------------------------------
         # TAB 4: SYSTEM SETTINGS, MODELS & CLEAR

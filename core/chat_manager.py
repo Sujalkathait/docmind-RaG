@@ -132,7 +132,7 @@ def create_session(
 
 
 def save_session(session_dict: dict) -> bool:
-    """Saves a session dictionary to disk atomically."""
+    """Saves a session dictionary to disk atomically with retry on Windows."""
     _ensure_chat_dir()
     session_id = session_dict.get("id")
     if not session_id:
@@ -140,13 +140,32 @@ def save_session(session_dict: dict) -> bool:
 
     session_dict["updated_at"] = time.time()
     file_path = _get_session_file_path(session_id)
-    temp_path = f"{file_path}.tmp"
+    temp_path = f"{file_path}.{uuid.uuid4().hex[:6]}.tmp"
 
     try:
         with open(temp_path, "w", encoding="utf-8") as f:
             json.dump(session_dict, f, ensure_ascii=False, indent=2)
-        os.replace(temp_path, file_path)
-        return True
+
+        # Retry loop for Windows atomic replacement
+        for attempt in range(3):
+            try:
+                os.replace(temp_path, file_path)
+                return True
+            except PermissionError:
+                time.sleep(0.05)
+            except Exception:
+                break
+
+        # Fallback if os.replace fails
+        if os.path.exists(temp_path):
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(session_dict, f, ensure_ascii=False, indent=2)
+                os.remove(temp_path)
+                return True
+            except Exception:
+                pass
+        return False
     except Exception as e:
         print(f"Error saving chat session '{session_id}': {e}")
         if os.path.exists(temp_path):
@@ -155,6 +174,7 @@ def save_session(session_dict: dict) -> bool:
             except Exception:
                 pass
         return False
+
 
 
 def get_session(session_id: str) -> dict | None:

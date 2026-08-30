@@ -21,16 +21,26 @@ def process_pdf_uploads(files: List[Any], folder: str) -> None:
     if not files:
         return
 
-    progress = st.sidebar.progress(0, text="Starting ingestion...")
+    progress = st.sidebar.progress(0.0, text="Starting ingestion...")
     total = len(files)
     success_count = 0
 
     for i, uploaded_file in enumerate(files):
-        filename = uploaded_file.name
-        progress.progress((i / total) * 0.1, text=f"Reading {filename}...")
+        filename = getattr(uploaded_file, "name", "document.pdf")
+        base_progress = i / total
+        file_weight = 1.0 / total
+
+        progress.progress(min(1.0, base_progress + file_weight * 0.1), text=f"Reading {filename}...")
 
         try:
+            # Ensure file pointer is at the beginning
+            if hasattr(uploaded_file, "seek"):
+                uploaded_file.seek(0)
             pdf_bytes = uploaded_file.read()
+
+            if not pdf_bytes:
+                st.sidebar.warning(f"⚠️ '{filename}' is empty, skipping.")
+                continue
 
             # Save file to disk under specified folder
             clean_folder = sanitize_folder_name(folder)
@@ -40,16 +50,16 @@ def process_pdf_uploads(files: List[Any], folder: str) -> None:
             with open(save_path, "wb") as f:
                 f.write(pdf_bytes)
 
-            # Extract text using fitz (PyMuPDF)
-            progress.progress((i / total) * 0.3, text=f"Extracting text from {filename}...")
+            # Extract text using PyMuPDF (fitz)
+            progress.progress(min(1.0, base_progress + file_weight * 0.3), text=f"Extracting text from {filename}...")
             text = load_pdf_from_bytes(pdf_bytes)
 
             if not text.strip():
-                st.sidebar.warning(f"⚠️ No text extracted from '{filename}', skipping.")
+                st.sidebar.warning(f"⚠️ No readable digital text extracted from '{filename}' (may be scanned image).")
                 continue
 
             # Split into overlapping chunks
-            progress.progress((i / total) * 0.5, text=f"Chunking {filename}...")
+            progress.progress(min(1.0, base_progress + file_weight * 0.5), text=f"Chunking {filename}...")
             chunks = create_chunks(text, CHUNK_SIZE, CHUNK_OVERLAP)
 
             if not chunks:
@@ -58,13 +68,13 @@ def process_pdf_uploads(files: List[Any], folder: str) -> None:
 
             # Generate vector embeddings
             progress.progress(
-                (i / total) * 0.7,
+                min(1.0, base_progress + file_weight * 0.7),
                 text=f"Embedding {filename} ({len(chunks)} chunks)...",
             )
             embeddings = embed_documents(chunks)
 
             # Store chunks & embeddings in ChromaDB
-            progress.progress((i / total) * 0.9, text=f"Storing {filename} in ChromaDB...")
+            progress.progress(min(1.0, base_progress + file_weight * 0.9), text=f"Storing {filename} in ChromaDB...")
             add_document(chunks, embeddings, filename, folder=clean_folder)
 
             success_count += 1
@@ -77,5 +87,6 @@ def process_pdf_uploads(files: List[Any], folder: str) -> None:
     progress.empty()
 
     if success_count > 0:
-        st.sidebar.success(f"✅ Indexed {success_count}/{total} PDF(s) into folder '{folder}'")
+        st.sidebar.success(f"✅ Successfully indexed {success_count}/{total} PDF(s) into '{folder}'")
         st.rerun()
+

@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 """
 Text chunking using RecursiveCharacterTextSplitter.
 Chunk sizes tuned for BGE-small-en-v1.5's 512-token window.
 """
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 
 
 def create_chunks(

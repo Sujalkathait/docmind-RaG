@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 DocMind RAG — Multi-Model Downloader Helper
 Provides options to download various quantized GGUF models:
@@ -10,6 +12,7 @@ Provides options to download various quantized GGUF models:
 """
 
 import os
+
 import sys
 import time
 import argparse

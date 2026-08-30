@@ -14,6 +14,8 @@ _client: Any = None
 _collection: Any = None
 _doc_count_cached: int | None = None
 _retrieval_cache: dict[tuple, dict] = {}
+_folder_stats_cached: list[dict] | None = None
+_folder_docs_cached: dict[str | None, list[dict]] = {}
 
 
 def _get_client():
@@ -47,17 +49,22 @@ def get_collection():
 
 def _invalidate_caches():
     """Invalidates memory caches when documents or collections are modified."""
-    global _doc_count_cached, _retrieval_cache
+    global _doc_count_cached, _retrieval_cache, _folder_stats_cached, _folder_docs_cached
     _doc_count_cached = None
     _retrieval_cache.clear()
+    _folder_stats_cached = None
+    _folder_docs_cached.clear()
 
 
-def sanitize_folder_name(name: str) -> str:
+def sanitize_folder_name(name: Any) -> str:
     """Sanitizes folder names for safe filesystem and metadata usage."""
-    if not name or not name.strip():
+    if name is None:
+        return DEFAULT_FOLDER
+    raw_str = str(name).strip()
+    if not raw_str:
         return DEFAULT_FOLDER
     sanitized = "".join(
-        c for c in name.strip() if c.isalnum() or c in (" ", "_", "-", "+")
+        c for c in raw_str if c.isalnum() or c in (" ", "_", "-", "+")
     ).strip()
     return sanitized if sanitized else DEFAULT_FOLDER
 
@@ -76,8 +83,12 @@ def add_document(
     """
     Adds document chunks + embeddings to ChromaDB with folder metadata.
     Replaces existing chunks for the same file + folder.
+    Batches chunk insertions to prevent batch limit exceptions.
     Returns the number of chunks added.
     """
+    if not chunks:
+        return 0
+
     collection = get_collection()
     clean_folder = sanitize_folder_name(folder)
     safe_filename = os.path.basename(filename)
@@ -98,12 +109,16 @@ def add_document(
         for i in range(len(chunks))
     ]
 
-    collection.add(
-        ids=chunk_ids,
-        documents=chunks,
-        embeddings=embeddings,
-        metadatas=metadatas,
-    )
+    # Ingest in safe batches of 500 chunks
+    batch_size = 500
+    for start_idx in range(0, len(chunks), batch_size):
+        end_idx = start_idx + batch_size
+        collection.add(
+            ids=chunk_ids[start_idx:end_idx],
+            documents=chunks[start_idx:end_idx],
+            embeddings=embeddings[start_idx:end_idx],
+            metadatas=metadatas[start_idx:end_idx],
+        )
 
     _invalidate_caches()
     return len(chunks)
@@ -144,7 +159,7 @@ def query(
         return _retrieval_cache[cache_key]
 
     # Resolve folder filter
-    where_filter = _build_folder_filter(folder, collection)
+    where_filter = _build_folder_filter(folder)
 
     n_results = min(top_k, total_count)
     query_params = {
@@ -170,8 +185,8 @@ def query(
     return out
 
 
-def _build_folder_filter(folder, collection) -> dict | None:
-    """Builds a ChromaDB where-filter from folder specification."""
+def _build_folder_filter(folder: str | list[str] | None, collection: Any = None) -> dict | None:
+    """Builds an optimized ChromaDB where-filter from folder specification using $in."""
     if folder is None:
         return None
 
@@ -190,7 +205,7 @@ def _build_folder_filter(folder, collection) -> dict | None:
     elif len(folders) == 1:
         return {"folder": folders[0]}
     else:
-        return {"$or": [{"folder": f} for f in folders]}
+        return {"folder": {"$in": folders}}
 
 
 # ===========================
@@ -199,7 +214,11 @@ def _build_folder_filter(folder, collection) -> dict | None:
 
 
 def get_all_folders() -> list[dict]:
-    """Returns all folders with document and chunk counts."""
+    """Returns all folders with cached document and chunk counts for high UI speed."""
+    global _folder_stats_cached
+    if _folder_stats_cached is not None:
+        return _folder_stats_cached
+
     os.makedirs(PDF_FOLDER, exist_ok=True)
     folder_set = {DEFAULT_FOLDER}
 
@@ -244,24 +263,29 @@ def get_all_folders() -> list[dict]:
     except Exception as e:
         print(f"Error reading ChromaDB folder stats: {e}")
 
-    return sorted(
+    _folder_stats_cached = sorted(
         list(folder_stats.values()),
         key=lambda x: (x["name"] != DEFAULT_FOLDER, x["name"].lower()),
     )
+    return _folder_stats_cached
 
 
 def get_folder_documents(folder_name: str | None = None) -> list[dict]:
     """
-    Returns a detailed list of all documents (indexed and unindexed)
+    Returns a detailed cached list of all documents (indexed and unindexed)
     for a specific folder or all folders.
     """
-    collection = get_collection()
+    global _folder_docs_cached
     clean_target = (
         sanitize_folder_name(folder_name)
         if folder_name and str(folder_name).lower() != "all"
         else None
     )
 
+    if clean_target in _folder_docs_cached:
+        return _folder_docs_cached[clean_target]
+
+    collection = get_collection()
     docs_map: dict[tuple[str, str], dict] = {}
 
     # 1. Gather indexed documents from ChromaDB
@@ -338,7 +362,9 @@ def get_folder_documents(folder_name: str | None = None) -> list[dict]:
 
     doc_list = list(docs_map.values())
     doc_list.sort(key=lambda d: (d["folder"].lower(), d["filename"].lower()))
+    _folder_docs_cached[clean_target] = doc_list
     return doc_list
+
 
 
 def create_folder(folder_name: str) -> dict:

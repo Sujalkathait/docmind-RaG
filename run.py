@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import sys
 import subprocess
 import os
+
 
 if __name__ == "__main__":
     app_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.py")

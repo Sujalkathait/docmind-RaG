@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import os
+
 
 # ===========================
 # LLM Model (Qwen2.5 3B GGUF via llama-cpp-python)
