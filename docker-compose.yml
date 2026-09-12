@@ -13,6 +13,7 @@ services:
       - PORT=8000
     volumes:
       # Persistent storage for second brain memory, wiki, documents, and vectors
+      - ./data:/app/data
       - ./database:/app/database
       - ./chroma_db:/app/chroma_db
       - ./raw:/app/raw
