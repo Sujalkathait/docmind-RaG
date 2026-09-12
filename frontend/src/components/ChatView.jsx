@@ -189,6 +189,9 @@ export default function ChatView({
           const isUser = msg.role === 'user';
           const isContextExpanded = expandedContextIndex === index;
           const meta = msg.metadata;
+          const isLastMessage = index === messages.length - 1;
+          const isCurrentlyGenerating = isGenerating && isLastMessage && !isUser;
+          const hasContent = Boolean(msg.content && msg.content.trim().length > 0);
 
           return (
             <div
@@ -212,13 +215,13 @@ export default function ChatView({
                     width: '34px',
                     height: '34px',
                     borderRadius: 'var(--radius-md)',
-                    background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+                    background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-cyan) 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                     marginTop: '4px',
-                    boxShadow: '0 0 12px rgba(6, 182, 212, 0.3)',
+                    boxShadow: 'var(--shadow-sm)',
                   }}>
                     <Bot size={18} color="#ffffff" />
                   </div>
@@ -227,12 +230,13 @@ export default function ChatView({
                 {/* Bubble Container */}
                 <div style={{
                   backgroundColor: isUser ? 'var(--bg-tertiary)' : 'var(--bg-card)',
-                  border: isUser ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--border-subtle)',
+                  border: isUser ? '1px solid var(--border-glow)' : '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-lg)',
                   padding: '16px 20px',
                   boxShadow: 'var(--shadow-sm)',
                   width: '100%',
                   backdropFilter: isUser ? 'none' : 'blur(10px)',
+                  transition: 'border-color var(--transition-fast)',
                 }}>
                   {isUser ? (
                     <div style={{ fontSize: '15px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
@@ -240,123 +244,148 @@ export default function ChatView({
                     </div>
                   ) : (
                     <div>
-                      {/* Markdown Assistant Content */}
-                      <div className="markdown-body">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-
-                      {/* Second Brain Injected Context Inspector */}
-                      {meta && (meta.retrieved_chunks > 0 || meta.injected_concepts > 0 || meta.injected_memories > 0) && (
+                      {/* Thinking State when waiting for first token */}
+                      {isCurrentlyGenerating && !hasContent && (
                         <div style={{
-                          marginTop: '14px',
-                          paddingTop: '12px',
-                          borderTop: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '4px 0',
+                          color: 'var(--accent-primary)',
+                          fontSize: '13px',
                         }}>
-                          <button
-                            onClick={() => setExpandedContextIndex(isContextExpanded ? null : index)}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--text-secondary)',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: 0,
-                            }}
-                          >
-                            <Brain size={14} color="var(--accent-cyan)" />
-                            <span>Second Brain Context Utilized:</span>
-                            <span className="badge badge-cyan" style={{ fontSize: '10px' }}>
-                              {meta.retrieved_chunks || 0} Chunks
-                            </span>
-                            {meta.injected_concepts > 0 && (
-                              <span className="badge badge-purple" style={{ fontSize: '10px' }}>
-                                {meta.injected_concepts} Wiki Concepts
-                              </span>
-                            )}
-                            {meta.injected_memories > 0 && (
-                              <span className="badge badge-emerald" style={{ fontSize: '10px' }}>
-                                {meta.injected_memories} Memories
-                              </span>
-                            )}
-                            {isContextExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          </button>
+                          <span className="pulsing-dot online" />
+                          <span style={{ fontStyle: 'italic', fontFamily: 'var(--font-body)' }}>
+                            DocMind is synthesizing grounded response...
+                          </span>
+                        </div>
+                      )}
 
-                          {/* Expanded Context Details */}
-                          {isContextExpanded && (
+                      {/* Markdown Assistant Content with streaming cursor */}
+                      {hasContent && (
+                        <div className="markdown-body">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          {isCurrentlyGenerating && <span className="streaming-cursor" />}
+                        </div>
+                      )}
+
+                      {/* Only show Second Brain Context Inspector & Action Buttons when completed (or not currently generating) AND has content */}
+                      {!isCurrentlyGenerating && hasContent && (
+                        <>
+                          {/* Second Brain Injected Context Inspector */}
+                          {meta && (meta.retrieved_chunks > 0 || meta.injected_concepts > 0 || meta.injected_memories > 0) && (
                             <div style={{
-                              marginTop: '10px',
-                              padding: '12px',
-                              borderRadius: 'var(--radius-md)',
-                              background: 'rgba(0, 0, 0, 0.25)',
-                              fontSize: '12px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '8px',
+                              marginTop: '14px',
+                              paddingTop: '12px',
+                              borderTop: '1px solid var(--border-subtle)',
                             }}>
-                              {meta.sources && meta.sources.length > 0 && (
-                                <div>
-                                  <div style={{ color: 'var(--accent-cyan)', fontWeight: 600, marginBottom: '4px' }}>
-                                    Ground-Truth Document Sources:
-                                  </div>
-                                  <ul style={{ paddingLeft: '16px', margin: 0, color: 'var(--text-secondary)' }}>
-                                    {meta.sources.map((s, si) => (
-                                      <li key={si}>
-                                        {s.document_id || s.filename || 'PDF'} (Page {s.page || 1})
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              {meta.wiki_concepts && meta.wiki_concepts.length > 0 && (
-                                <div>
-                                  <div style={{ color: 'var(--accent-purple)', fontWeight: 600, marginBottom: '4px' }}>
-                                    Injected Wiki Concepts:
-                                  </div>
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                    {meta.wiki_concepts.map((c, ci) => (
-                                      <span key={ci} className="badge badge-purple">
-                                        🌐 {c}
-                                      </span>
-                                    ))}
-                                  </div>
+                              <button
+                                onClick={() => setExpandedContextIndex(isContextExpanded ? null : index)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: 0,
+                                }}
+                              >
+                                <Brain size={14} color="var(--accent-cyan)" />
+                                <span>Second Brain Context Utilized:</span>
+                                <span className="badge badge-cyan" style={{ fontSize: '10px' }}>
+                                  {meta.retrieved_chunks || 0} Chunks
+                                </span>
+                                {meta.injected_concepts > 0 && (
+                                  <span className="badge badge-purple" style={{ fontSize: '10px' }}>
+                                    {meta.injected_concepts} Wiki Concepts
+                                  </span>
+                                )}
+                                {meta.injected_memories > 0 && (
+                                  <span className="badge badge-emerald" style={{ fontSize: '10px' }}>
+                                    {meta.injected_memories} Memories
+                                  </span>
+                                )}
+                                {isContextExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              </button>
+
+                              {/* Expanded Context Details */}
+                              {isContextExpanded && (
+                                <div style={{
+                                  marginTop: '10px',
+                                  padding: '12px',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: 'rgba(0, 0, 0, 0.25)',
+                                  fontSize: '12px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '8px',
+                                }}>
+                                  {meta.sources && meta.sources.length > 0 && (
+                                    <div>
+                                      <div style={{ color: 'var(--accent-cyan)', fontWeight: 600, marginBottom: '4px' }}>
+                                        Ground-Truth Document Sources:
+                                      </div>
+                                      <ul style={{ paddingLeft: '16px', margin: 0, color: 'var(--text-secondary)' }}>
+                                        {meta.sources.map((s, si) => (
+                                          <li key={si}>
+                                            {s.document_id || s.filename || 'PDF'} (Page {s.page || 1})
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {meta.wiki_concepts && meta.wiki_concepts.length > 0 && (
+                                    <div>
+                                      <div style={{ color: 'var(--accent-purple)', fontWeight: 600, marginBottom: '4px' }}>
+                                        Injected Wiki Concepts:
+                                      </div>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                        {meta.wiki_concepts.map((c, ci) => (
+                                          <span key={ci} className="badge badge-purple">
+                                            🌐 {c}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
                           )}
-                        </div>
+
+                          {/* Response Action Bar */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: '8px',
+                            marginTop: '12px',
+                          }}>
+                            <button
+                              onClick={() => handleCopy(msg.content, index)}
+                              className="btn-ghost btn-sm"
+                              style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              title="Copy Answer"
+                            >
+                              {copiedIndex === index ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
+                              <span>{copiedIndex === index ? 'Copied' : 'Copy'}</span>
+                            </button>
+
+                            <button
+                              onClick={() => onSaveToMemory(msg.content)}
+                              className="btn-ghost btn-sm"
+                              style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-purple)' }}
+                              title="Save key insight to Second Brain Selective Memory"
+                            >
+                              <BookmarkPlus size={12} />
+                              <span>Save to Memory</span>
+                            </button>
+                          </div>
+                        </>
                       )}
-
-                      {/* Response Action Bar */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        gap: '8px',
-                        marginTop: '12px',
-                      }}>
-                        <button
-                          onClick={() => handleCopy(msg.content, index)}
-                          className="btn-ghost btn-sm"
-                          style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          title="Copy Answer"
-                        >
-                          {copiedIndex === index ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
-                          <span>{copiedIndex === index ? 'Copied' : 'Copy'}</span>
-                        </button>
-
-                        <button
-                          onClick={() => onSaveToMemory(msg.content)}
-                          className="btn-ghost btn-sm"
-                          style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-purple)' }}
-                          title="Save key insight to Second Brain Selective Memory"
-                        >
-                          <BookmarkPlus size={12} />
-                          <span>Save to Memory</span>
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -382,33 +411,6 @@ export default function ChatView({
             </div>
           );
         })}
-
-        {/* Streaming / Generating Indicator */}
-        {isGenerating && (
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 0' }}>
-            <div style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Bot size={18} color="#ffffff" />
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: 'var(--accent-cyan)',
-              fontSize: '13px',
-            }}>
-              <span className="pulsing-dot online" />
-              <span>DocMind is synthesizing grounded response...</span>
-            </div>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Cpu, Database, Sparkles, BookOpen, Layers } from 'lucide-react';
+import { Brain, Cpu, Database, Sparkles, BookOpen, Layers, Sun, Moon } from 'lucide-react';
 
 export default function Header({
   health,
@@ -11,6 +11,8 @@ export default function Header({
   onOpenStudyStudio,
   documentCount = 0,
   onSwitchModel,
+  theme = 'dark',
+  onToggleTheme,
 }) {
   const isOnline = health?.status === 'healthy';
   const modelName = health?.active_model || 'Loading LLM...';
@@ -181,6 +183,25 @@ export default function Header({
             </span>
           )}
         </div>
+
+        {/* Editorial Serif Theme Switcher */}
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={onToggleTheme}
+          title={theme === 'serif' ? 'Switch to Midnight Indigo mode' : 'Switch to Editorial Serif mode'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            fontSize: '11px',
+            fontFamily: theme === 'serif' ? 'var(--font-heading)' : 'var(--font-body)',
+            borderColor: theme === 'serif' ? 'var(--accent-primary)' : 'var(--border-subtle)',
+          }}
+        >
+          {theme === 'serif' ? <Sun size={13} color="var(--accent-primary)" /> : <Moon size={13} color="var(--text-secondary)" />}
+          <span>{theme === 'serif' ? 'Serif' : 'Midnight'}</span>
+        </button>
       </div>
     </header>
   );

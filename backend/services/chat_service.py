@@ -15,7 +15,7 @@ from backend.orchestration.prompt_builder import ChatMLPromptBuilder
 from backend.memory.memory_evaluator import evaluate_interaction_for_memory
 from core.embedder import embed_query
 from core.vector_store import query as vector_query
-from core.llm import generate, is_model_loaded, get_dynamic_max_tokens
+from core.llm import generate, is_model_loaded, get_dynamic_max_tokens, _clean_output_text
 from config import TOP_K, DOCMIND_SYSTEM_PROMPT
 
 
@@ -118,9 +118,9 @@ class ChatService:
                 chunk_data = json.dumps({"delta": tok})
                 yield f"data: {chunk_data}\n\n"
 
-            complete_answer = "".join(full_text)
+            complete_answer = _clean_output_text("".join(full_text))
             if not complete_answer.strip():
-                complete_answer = "I searched your documents but found no conclusive evidence to answer this question."
+                complete_answer = "I couldn't find this information in the uploaded documents."
 
             # Save assistant message to session repository
             session = self.session_repo.get_session(session_id)

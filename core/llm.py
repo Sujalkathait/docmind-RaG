@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import glob
+import re
 from typing import Any
 
 try:
@@ -338,10 +339,27 @@ def generate(
         return _batch_generate(llm, full_prompt, effective_max_tokens, temperature)
 
 
+def _clean_output_text(text: str) -> str:
+    """Removes leaked ChatML tags, role markers, and reasoning tags from assistant response."""
+    if not text:
+        return ""
+    # Strip ChatML tags
+    text = re.sub(r"<\|im_start\|>(\w+)?", "", text)
+    text = re.sub(r"<\|im_end\|>", "", text)
+    # Strip <role> and </role> tags
+    text = re.sub(r"<\/?role>", "", text, flags=re.IGNORECASE)
+    # Strip completed <think> blocks or solitary think tags
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\/?think>", "", text)
+    # Strip leading "assistant:" or "assistant\n"
+    text = re.sub(r"^\s*assistant\s*:\s*", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+
 def _batch_generate(
     llm: Llama, prompt: str, max_tokens: int, temperature: float
 ) -> str:
-    """Generates a complete response (non-streaming)."""
+    """Generates a complete response (non-streaming) with sanitized output."""
     output = llm(
         prompt,
         max_tokens=max_tokens,
@@ -352,14 +370,14 @@ def _batch_generate(
         echo=False,
     )
 
-    text = output["choices"][0]["text"].strip()
-    return text
+    raw_text = output["choices"][0]["text"]
+    return _clean_output_text(raw_text)
 
 
 def _stream_generate(
     llm: Llama, prompt: str, max_tokens: int, temperature: float
 ):
-    """Yields tokens one at a time for streaming display."""
+    """Yields tokens one at a time for streaming display with leading artifact filtering."""
     stream = llm(
         prompt,
         max_tokens=max_tokens,
@@ -371,8 +389,48 @@ def _stream_generate(
         stream=True,
     )
 
+    buffer = ""
+    buffered = True
+    in_think_block = False
+
     for chunk in stream:
         token = chunk["choices"][0]["text"]
-        if token:
-            yield token
+        if not token:
+            continue
+
+        if buffered:
+            buffer += token
+            # Check if think block started
+            if "<think>" in buffer and "</think>" not in buffer:
+                in_think_block = True
+                continue
+            if in_think_block:
+                if "</think>" in buffer:
+                    buffer = buffer.split("</think>", 1)[1]
+                    in_think_block = False
+                else:
+                    continue
+
+            # Check if buffer has enough characters or a newline to clean leading prefix
+            if len(buffer) >= 20 or "\n" in buffer:
+                cleaned = _clean_output_text(buffer)
+                buffered = False
+                if cleaned:
+                    yield cleaned
+                buffer = ""
+        else:
+            # Once initial prefix is stripped, filter isolated stop/role tokens
+            if any(marker in token for marker in ("<|im_end|>", "<|im_start|>", "<role>", "</role>")):
+                clean_tok = token.replace("<|im_end|>", "").replace("<|im_start|>", "").replace("<role>", "").replace("</role>", "")
+                if clean_tok:
+                    yield clean_tok
+            else:
+                yield token
+
+    # Flush any remaining buffer if stream was very short
+    if buffered and buffer:
+        cleaned = _clean_output_text(buffer)
+        if cleaned:
+            yield cleaned
+
 

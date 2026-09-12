@@ -65,6 +65,135 @@
   --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ==========================================================================
+   Editorial Serif Design System Theme (Ivory, Rich Black & Burnished Gold)
+   ========================================================================== */
+[data-theme="serif"] {
+  /* Editorial Palette: Warm Ivory & Pure White Canvas */
+  --bg-primary: #FAFAF8;
+  --bg-secondary: #F5F3F0;
+  --bg-tertiary: #EAE6DF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FAF8F5;
+  --bg-glass: rgba(250, 250, 248, 0.94);
+  --bg-glass-input: #FFFFFF;
+
+  /* Rule Line System & Borders */
+  --border-subtle: #E8E4DF;
+  --border-glow: rgba(184, 134, 11, 0.3);
+  --border-focus: #B8860B;
+
+  /* Primary Accent: Burnished Gold */
+  --accent-primary: #B8860B;
+  --accent-primary-hover: #D4A84B;
+  --accent-primary-glow: rgba(184, 134, 11, 0.25);
+
+  /* Secondary Accents */
+  --accent-cyan: #B8860B;
+  --accent-cyan-hover: #9E7308;
+  --accent-cyan-glow: rgba(184, 134, 11, 0.2);
+
+  --accent-emerald: #2E6B4F;
+  --accent-emerald-glow: rgba(46, 107, 79, 0.2);
+  --accent-amber: #B8860B;
+  --accent-rose: #A33B3B;
+  --accent-purple: #6B4E71;
+
+  /* Typography: Classical Serif Headlines, Clean Body, Tracked Small Caps */
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Text Colors */
+  --text-primary: #1A1A1A;
+  --text-secondary: #6B6B6B;
+  --text-muted: #8E8A83;
+  --text-inverse: #FAFAF8;
+
+  /* Subtle Editorial Shadows & Radii */
+  --shadow-sm: 0 1px 3px rgba(26, 26, 26, 0.05);
+  --shadow-md: 0 4px 14px rgba(26, 26, 26, 0.07);
+  --shadow-lg: 0 10px 28px rgba(26, 26, 26, 0.09);
+  --shadow-glow: 0 0 20px rgba(184, 134, 11, 0.18);
+  --shadow-cyan-glow: 0 0 20px rgba(184, 134, 11, 0.18);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+[data-theme="serif"] body::before {
+  background: radial-gradient(circle, rgba(184, 134, 11, 0.04) 0%, rgba(212, 168, 75, 0.02) 50%, transparent 80%);
+}
+
+[data-theme="serif"] .markdown-body {
+  color: #1A1A1A;
+  line-height: 1.75;
+}
+
+[data-theme="serif"] .markdown-body h1,
+[data-theme="serif"] .markdown-body h2,
+[data-theme="serif"] .markdown-body h3,
+[data-theme="serif"] .markdown-body h4 {
+  font-family: var(--font-heading);
+  color: #1A1A1A;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="serif"] .markdown-body code {
+  background: #F5F3F0;
+  border: 1px solid #E8E4DF;
+  color: #8B6508;
+  font-family: var(--font-mono);
+}
+
+[data-theme="serif"] .markdown-body pre {
+  background: #FAF8F5;
+  border: 1px solid #E8E4DF;
+}
+
+[data-theme="serif"] .markdown-body pre code {
+  background: transparent;
+  border: none;
+  color: #1A1A1A;
+}
+
+[data-theme="serif"] .badge-cyan {
+  background: rgba(184, 134, 11, 0.1);
+  color: #8B6508;
+  border: 1px solid rgba(184, 134, 11, 0.25);
+}
+
+[data-theme="serif"] .badge-purple {
+  background: rgba(107, 78, 113, 0.1);
+  color: #6B4E71;
+  border: 1px solid rgba(107, 78, 113, 0.25);
+}
+
+[data-theme="serif"] .btn-primary {
+  background: #B8860B;
+  color: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(184, 134, 11, 0.25);
+}
+[data-theme="serif"] .btn-primary:hover {
+  background: #D4A84B;
+  box-shadow: 0 3px 10px rgba(184, 134, 11, 0.35);
+  transform: translateY(-1px);
+}
+
+[data-theme="serif"] .btn-secondary {
+  background: #FFFFFF;
+  border: 1px solid #E8E4DF;
+  color: #1A1A1A;
+}
+[data-theme="serif"] .btn-secondary:hover {
+  background: #F5F3F0;
+  border-color: #B8860B;
+  color: #B8860B;
+}
+
 /* Reset & Box Sizing */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -399,3 +528,42 @@ code, pre {
 .markdown-body th {
   background: rgba(255, 255, 255, 0.05);
 }
+
+/* ==========================================================================
+   Streaming & Thinking UX Utilities
+   ========================================================================== */
+.streaming-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  background-color: var(--accent-primary);
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: blinkCursor 0.85s infinite;
+  border-radius: 1px;
+}
+
+@keyframes blinkCursor {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.small-caps {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.rule-line {
+  height: 1px;
+  background-color: var(--border-subtle);
+  border: none;
+  width: 100%;
+}
+

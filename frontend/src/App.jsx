@@ -41,6 +41,18 @@ export default function App() {
     outputsCount: 0,
   });
 
+  // Editorial Serif vs Midnight Dark Theme State
+  const [theme, setTheme] = useState(() => localStorage.getItem('docmind_theme') || 'serif');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('docmind_theme', theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'serif' ? 'dark' : 'serif'));
+  };
+
   // Initial Load
   useEffect(() => {
     refreshAllData();
@@ -235,6 +247,8 @@ export default function App() {
         onOpenStudyStudio={() => openSecondBrain('studio')}
         documentCount={documents.length}
         onSwitchModel={handleSwitchModel}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Main Workspace Layout */}
