@@ -29,7 +29,7 @@ echo   Using Python: %PYTHON_EXE%
 echo   Launching server on http://127.0.0.1:8000 ...
 echo ==================================================================
 
-"%PYTHON_EXE%" run_server.py
+"%PYTHON_EXE%" run.py
 
 if errorlevel 1 (
     echo.

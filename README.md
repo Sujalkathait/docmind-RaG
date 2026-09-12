@@ -23,7 +23,7 @@ DocMind features a **unified single-port deployment**: both the React 18 product
 cd "RAG PDF CHATBOT"
 
 # 2. Start the unified server (Windows, macOS, Linux)
-python run_server.py
+python run.py
 
 # Or on Windows, simply double-click:
 start.bat
@@ -180,13 +180,11 @@ Users can delete past conversations anytime with full data cleanup:
 
 ```text
 RAG PDF CHATBOT/
-├── run_server.py                 # Unified single-port launcher (Port 8000: React + FastAPI)
+├── run.py                        # Single main unified launcher (Port 8000: React UI + FastAPI backend)
 ├── start.bat                     # Windows one-click double-clickable launcher
-├── run_dev.py                    # Dual hot-reloading dev runner (Vite:5173 + FastAPI:8000)
 ├── config.py                     # System hyperparameters, model paths, and context budgets
-├── requirements.txt              # Backend Python dependencies
-├── Dockerfile                    # Multi-stage production container build
-├── docker-compose.yml            # Docker orchestration configuration
+├── download_model.py             # Multi-model downloader helper (Qwen 3B, SmolLM2 360M)
+├── requirements.txt              # Clean Python dependencies (100% offline, zero API keys)
 │
 ├── backend/                      # Production FastAPI Backend Layer
 │   ├── api/                      # REST API Endpoints
