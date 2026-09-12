@@ -18,3 +18,11 @@
 4. **Code & Trace Clarity**:
    - Provide clean, syntactically valid code.
    - Avoid unrequested conversational filler or boilerplate intros.
+
+5. **Proactive Error Detection & Bug Correction**:
+   - Actively examine all code snippets, data structures, algorithms, and boundary conditions for bugs or logical errors.
+   - If an error is spotted (e.g., `top < -1` for stack underflow instead of `top == -1` or `top < 0`, off-by-one array access, dangling pointers, division by zero):
+     - Explicitly state the exact bug and why it fails.
+     - Provide the corrected code with the fixed logic.
+     - Keep the correction clear, precise, and beginner-friendly.
+
