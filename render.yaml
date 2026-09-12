@@ -1,0 +1,27 @@
+# ==============================================================================
+# DocMind RAG + Second Brain — Render Blueprint (render.yaml)
+# Enables 1-click Web Service deployment on Render.com
+# ==============================================================================
+
+services:
+  - type: web
+    name: docmind-second-brain
+    runtime: docker
+    plan: starter # Starter plan recommended (2GB RAM). Use SmolLM2 for low memory usage.
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: N_CTX
+        value: "2048"
+      - key: N_THREADS
+        value: "2"
+      - key: MODEL_PATH
+        value: models/SmolLM2-360M-Instruct-Q4_K_M.gguf
+    disk:
+      name: docmind-data
+      mountPath: /app/data
+      sizeGB: 10

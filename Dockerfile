@@ -30,7 +30,6 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend and project files
 COPY core/ ./core/
 COPY backend/ ./backend/
 COPY raw/ ./raw/
@@ -38,7 +37,10 @@ COPY wiki/ ./wiki/
 COPY ctx/ ./ctx/
 COPY mem/ ./mem/
 COPY output/ ./output/
-COPY run_server.py ./
+COPY config.py run_server.py download_model.py ./
+
+# Download lightweight model during build so container is ready out-of-the-box
+RUN python download_model.py -m smollm2-360m
 
 # Copy built frontend assets from Stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

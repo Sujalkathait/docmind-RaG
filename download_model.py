@@ -36,7 +36,16 @@ AVAILABLE_MODELS = {
         "url": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
         "size_str": "~2.0 GB",
         "description": "Deep reasoning, best for step-by-step algorithms, memory dry runs, and Mermaid diagrams.",
-    }
+    },
+    "2": {
+        "id": "smollm2-360m",
+        "name": "SmolLM2 360M Instruct (Ultra Lightweight for Cloud/Free Tier)",
+        "repo": "HuggingFaceTB/SmolLM2-360M-Instruct-GGUF",
+        "filename": "SmolLM2-360M-Instruct-Q4_K_M.gguf",
+        "url": "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf",
+        "size_str": "~258 MB",
+        "description": "Ultra fast, lightweight, runs easily on low RAM (512MB - 1GB) instances like Render.",
+    },
 }
 
 
