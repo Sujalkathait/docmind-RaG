@@ -269,30 +269,22 @@ def render_chat_view() -> None:
                 st.rerun()
             else:
 
-                # Step B: Assemble clean context (Timing: t_prompt)
+                # Step B: Assemble Second Brain Grounded Context (Evidence + Wiki + Memory)
                 t_prompt_start = time.time()
-                sources = []
-                context_parts = []
-                seen_snippets = set()
+                from backend.orchestration.context_assembler import assemble_grounded_context
+                from backend.memory.memory_evaluator import evaluate_interaction_for_memory
 
-                for idx, chunk in enumerate(chunks):
-                    clean_chunk = chunk.strip()
-                    # Skip duplicate snippets
-                    chunk_key = clean_chunk[:100]
-                    if chunk_key in seen_snippets:
-                        continue
-                    seen_snippets.add(chunk_key)
+                assembled = assemble_grounded_context(
+                    query=prompt,
+                    raw_chunks=chunks,
+                    metadatas=metadatas,
+                    history=prior_history,
+                )
 
-                    meta = metadatas[idx] if idx < len(metadatas) else {}
-                    src = meta.get("source", "Document")
-                    folder = meta.get("folder", "General")
-                    context_parts.append(f"[Source: {src} | Folder: {folder}]\n{clean_chunk}")
-
-                    label = f"{src} ({folder})" if folder != "General" else src
-                    if label not in sources:
-                        sources.append(label)
-
-                context = "\n\n---\n\n".join(context_parts)
+                context = assembled["context"]
+                sources = assembled["sources"]
+                wiki_concepts = assembled.get("wiki_concepts", [])
+                activated_memories = assembled.get("activated_memories", [])
                 t_prompt = time.time() - t_prompt_start
 
                 # Step C: Stream generation with dynamic token limit (Timing: t_gen)
@@ -339,6 +331,12 @@ def render_chat_view() -> None:
                 for s in sources:
                     badges_html.append(f'<span class="source-badge">📎 {s}</span>')
 
+                for c in wiki_concepts:
+                    badges_html.append(f'<span class="scope-badge" style="background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;" title="Wiki Knowledge Link">🌐 {c}</span>')
+
+                if activated_memories:
+                    badges_html.append(f'<span class="scope-badge" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fde68a;" title="{len(activated_memories)} Memory Preferences Applied">🧠 Memory Applied</span>')
+
                 speed_label = f"⏱️ {total_elapsed:.2f}s"
                 if tok_speed > 0:
                     speed_label += f" (⚡ {tok_speed:.1f} tok/s)"
@@ -364,6 +362,11 @@ def render_chat_view() -> None:
                     folder_scope=st.session_state.selected_folders,
                     mode="llm",
                 )
+
+                # Second Brain Update Loop: Evaluate interaction for persistent memory
+                mem_saved = evaluate_interaction_for_memory(prompt, full_response)
+                if mem_saved:
+                    st.toast(f"💡 Saved preference to Second Brain: {mem_saved['key']}", icon="🧠")
 
                 # Action Bar
                 render_assistant_actions(

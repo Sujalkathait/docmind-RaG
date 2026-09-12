@@ -1,0 +1,22 @@
+{
+  "preferences": [
+    {
+      "category": "USER_PREFERENCE",
+      "key": "tone",
+      "value": "Concise, engineering-focused, structured with clear headers and bullet points",
+      "importance": 0.8
+    },
+    {
+      "category": "LEARNING_PREFERENCE",
+      "key": "explanation_style",
+      "value": "Provide brief conceptual analogy or intuition first, then concrete technical mechanics and code/diagrams",
+      "importance": 0.9
+    },
+    {
+      "category": "PROJECT_CONTEXT",
+      "key": "course_target",
+      "value": "Computer Science & Engineering Study and Research Assistant",
+      "importance": 0.7
+    }
+  ]
+}

@@ -30,6 +30,35 @@ models/*
 *.bin
 
 # ===================================
+# Node & Frontend
+# ===================================
+node_modules/
+frontend/node_modules/
+.npm/
+
+# ===================================
+# Databases & Raw User Data
+# ===================================
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite
+data/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+raw/pdfs/*
+!raw/pdfs/.gitkeep
+raw/extracted/*
+!raw/extracted/.gitkeep
+output/*
+!output/.gitkeep
+!output/notes/.gitkeep
+!output/summaries/.gitkeep
+!output/quizzes/.gitkeep
+!output/reports/.gitkeep
+
+# ===================================
 # Python & Virtual Environments
 # ===================================
 __pycache__/
@@ -44,6 +73,9 @@ env/
 build/
 develop-eggs/
 dist/
+!frontend/dist/
+!frontend/dist/**
+
 downloads/
 eggs/
 .eggs/

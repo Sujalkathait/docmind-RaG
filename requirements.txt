@@ -4,3 +4,7 @@ llama-cpp-python
 streamlit
 langchain-text-splitters
 chromadb
+fastapi
+uvicorn
+pydantic
+httpx

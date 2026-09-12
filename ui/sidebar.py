@@ -31,10 +31,21 @@ from core.chat_manager import (
     clear_all_sessions,
 )
 from ui.ingestion import process_pdf_uploads
+from backend.database.crud import (
+    list_memories,
+    upsert_memory,
+    delete_memory,
+    list_knowledge_nodes,
+    get_node_relationships,
+    get_sources_for_node,
+    list_outputs,
+)
+from backend.database.models import MemoryCategory
+from backend.output.generator import generate_study_deliverable
 
 
 def render_sidebar() -> None:
-    """Renders the comprehensive sidebar with 4 tabs and system status cards."""
+    """Renders the comprehensive sidebar with 5 tabs including Second Brain and system status cards."""
     with st.sidebar:
         st.markdown("## 🎓 DocMind RAG")
         st.markdown("*CS Learning Assistant & Local PDF Intelligence*")
@@ -70,13 +81,15 @@ def render_sidebar() -> None:
 
         st.divider()
 
-        # --- Sidebar Navigation Tabs ---
-        tab_chats, tab_folders, tab_upload, tab_settings = st.tabs([
+        # --- Sidebar Navigation Tabs (5 Tabs with Second Brain) ---
+        tab_chats, tab_folders, tab_upload, tab_brain, tab_settings = st.tabs([
             "💬 Chats",
-            "📁 Notes & Folders",
+            "📁 Folders",
             "📤 Upload",
+            "🧠 Second Brain",
             "⚙️ Manage",
         ])
+
 
         # ------------------------------------
         # TAB 1: PERSISTENT CHAT SESSIONS
@@ -243,13 +256,133 @@ def render_sidebar() -> None:
                     process_pdf_uploads(uploaded_files, upload_dest)
 
         # ------------------------------------
-        # TAB 4: SYSTEM SETTINGS, MODELS & CLEAR
+        # TAB 4: SECOND BRAIN (PERSISTENT KNOWLEDGE, MEMORY & OUTPUTS)
+        # ------------------------------------
+        with tab_brain:
+            st.markdown("#### 🧠 Second Brain Layer")
+            brain_mem, brain_wiki, brain_studio = st.tabs([
+                "🧠 Memory",
+                "🌐 Wiki Graph",
+                "📝 Study Studio",
+            ])
+
+            # Subtab 1: Memory & Preferences
+            with brain_mem:
+                st.markdown("##### 📌 Persistent User & Learning Memory")
+                mems = list_memories()
+                if not mems:
+                    st.caption("No persistent memories saved yet.")
+                else:
+                    for m in mems:
+                        col_m_text, col_m_del = st.columns([0.85, 0.15])
+                        with col_m_text:
+                            cat_label = m.category.replace("_", " ").title()
+                            st.markdown(
+                                f"""<div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px;">
+                                    <div style="font-size: 0.75rem; color: #a5b4fc; font-weight: 700;">{cat_label} • {m.memory_key} (Imp: {m.importance_score})</div>
+                                    <div style="font-size: 0.85rem; color: #e2e8f0;">{m.memory_value}</div>
+                                </div>""",
+                                unsafe_allow_html=True,
+                            )
+                        with col_m_del:
+                            if st.button("✕", key=f"del_mem_{m.id}", help="Delete memory"):
+                                delete_memory(m.id)
+                                st.rerun()
+
+                st.markdown("---")
+                with st.expander("➕ Add New Preference / Memory", expanded=False):
+                    new_cat = st.selectbox(
+                        "Category",
+                        options=[
+                            MemoryCategory.LEARNING_PREFERENCE,
+                            MemoryCategory.USER_PREFERENCE,
+                            MemoryCategory.PROJECT_CONTEXT,
+                            MemoryCategory.USER_GOAL,
+                        ],
+                        key="new_mem_cat",
+                    )
+                    new_key = st.text_input("Memory Key", placeholder="e.g. code_style or primary_goal", key="new_mem_key")
+                    new_val = st.text_area("Value", placeholder="e.g. Always show C code examples first with intuition", key="new_mem_val")
+                    new_imp = st.slider("Importance Score", 0.1, 1.0, 0.8, step=0.05, key="new_mem_imp")
+                    if st.button("Save Memory", type="primary", use_container_width=True):
+                        if new_key.strip() and new_val.strip():
+                            upsert_memory(
+                                user_id="default_user",
+                                category=new_cat,
+                                key=new_key,
+                                value=new_val,
+                                importance_score=new_imp,
+                            )
+                            st.success("Memory saved to Second Brain!")
+                            st.rerun()
+
+            # Subtab 2: Wiki Knowledge Graph
+            with brain_wiki:
+                st.markdown("##### 🌐 Structured Wiki Concepts")
+                wiki_search = st.text_input("🔍 Search Concepts:", placeholder="e.g. Deadlock, TCP...", key="wiki_search_input")
+                nodes = list_knowledge_nodes(query=wiki_search if wiki_search.strip() else None)
+                st.caption(f"Showing **{len(nodes)}** concepts in knowledge base.")
+
+                for node in nodes[:15]:
+                    with st.expander(f"📌 {node.name} [{node.category}]", expanded=False):
+                        if node.canonical_definition:
+                            st.markdown(f"**Canonical Definition:**\n> {node.canonical_definition}")
+                        st.markdown(f"**Summary:** {node.summary}")
+                        rels = get_node_relationships(node.id)
+                        if rels:
+                            st.markdown("**Connected Relationships:**")
+                            for r in rels:
+                                other = r.target_name if r.source_node_id == node.id else r.source_name
+                                st.markdown(f"- **{r.relation_type}** → `{other}` *(conf: {r.confidence})*")
+                        sources = get_sources_for_node(node.id)
+                        if sources:
+                            st.markdown("**Anchored Sources:**")
+                            for s in sources:
+                                st.markdown(f"- 📄 `{s.document_name or 'Document'}` — Page {s.page_number}")
+
+            # Subtab 3: Study Studio & Deliverables
+            with brain_studio:
+                st.markdown("##### 📝 Study Deliverable Generator")
+                target_topic = st.text_input("Study Topic:", placeholder="e.g. Deadlock & Two-Phase Locking", key="studio_topic")
+                out_type = st.selectbox("Output Format:", ["STUDY_NOTES", "SUMMARY", "QUIZ", "FLASHCARDS"], key="studio_format")
+                if st.button("✨ Generate Deliverable", type="primary", use_container_width=True):
+                    if target_topic.strip():
+                        with st.spinner(f"Synthesizing {out_type} for '{target_topic}'..."):
+                            res = generate_study_deliverable(
+                                topic=target_topic,
+                                output_type=out_type,
+                                folder_scope=st.session_state.selected_folders,
+                            )
+                            if res.get("success"):
+                                st.success(f"Generated and saved to `{res['file_path']}`!")
+                                st.rerun()
+                            else:
+                                st.error(res.get("error", "Generation failed."))
+
+                st.markdown("---")
+                st.markdown("##### 🗄️ Saved Deliverables")
+                saved_outputs = list_outputs()
+                if not saved_outputs:
+                    st.caption("No study deliverables generated yet.")
+                else:
+                    for out in saved_outputs[:6]:
+                        st.markdown(
+                            f"""<div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px;">
+                                <div style="font-size: 0.8rem; font-weight: 700; color: #818cf8;">📄 {out.title}</div>
+                                <div style="font-size: 0.72rem; color: #94a3b8;">Path: <code>{out.file_path}</code></div>
+                            </div>""",
+                            unsafe_allow_html=True,
+                        )
+
+        # ------------------------------------
+        # TAB 5: SYSTEM SETTINGS, MODELS & CLEAR
         # ------------------------------------
         with tab_settings:
             st.markdown("#### 🤖 LLM Model Management")
             avail_models = get_available_models()
             cur_model_info = get_model_info()
             cur_m_name = cur_model_info.get("model_name", "")
+
 
             if avail_models:
                 st.markdown(f"**Installed Models ({len(avail_models)}):**")

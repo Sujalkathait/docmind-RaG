@@ -29,15 +29,6 @@ OUTPUT_DIR = "models"
 
 AVAILABLE_MODELS = {
     "1": {
-        "id": "smollm2-360m",
-        "name": "SmolLM2 360M Instruct (Ultra-Lightweight)",
-        "repo": "HuggingFaceTB/SmolLM2-360M-Instruct-GGUF",
-        "filename": "SmolLM2-360M-Instruct-Q4_K_M.gguf",
-        "url": "https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf",
-        "size_str": "~258 MB",
-        "description": "Ultra-fast, lowest RAM/CPU footprint (~300 MB RAM). Ideal for quick testing & basic devices.",
-    },
-    "2": {
         "id": "qwen2.5-3b",
         "name": "Qwen2.5 3B Instruct (Recommended CS Tutor)",
         "repo": "Qwen/Qwen2.5-3B-Instruct-GGUF",

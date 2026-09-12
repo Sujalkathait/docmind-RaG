@@ -1,0 +1,17 @@
+<|im_start|>system
+{system_prompt}
+
+{anti_hallucination_rules}
+
+{user_preferences}
+<|im_end|>
+{history_turns}
+<|im_start|>user
+Context from study notes:
+{document_evidence}
+
+{wiki_connections}
+
+Question: {user_question}
+<|im_end|>
+<|im_start|>assistant

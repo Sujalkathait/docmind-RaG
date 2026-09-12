@@ -43,6 +43,7 @@ COLLECTION_NAME = "pdf_notes"
 # ===========================
 
 PDF_FOLDER = "pdfs"
+CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", "chat_history")
 
 # ===========================
 # Chunk Settings (tuned for BGE's 512-token window)

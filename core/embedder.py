@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import os
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+
 from functools import lru_cache
 from sentence_transformers import SentenceTransformer
 
