@@ -156,9 +156,14 @@ def list_folders(user_id: str = "default_user") -> List[str]:
             if row["folder"]:
                 folders.add(row["folder"])
 
-    if os.path.exists("pdfs"):
-        for entry in os.listdir("pdfs"):
-            if os.path.isdir(os.path.join("pdfs", entry)):
+    try:
+        from config import PDF_FOLDER
+    except ImportError:
+        PDF_FOLDER = os.path.join("raw", "pdfs")
+
+    if os.path.exists(PDF_FOLDER):
+        for entry in os.listdir(PDF_FOLDER):
+            if os.path.isdir(os.path.join(PDF_FOLDER, entry)):
                 folders.add(entry)
 
     return sorted(list(folders))

@@ -32,18 +32,30 @@ EMBEDDING_DIMENSION = 384
 QUERY_PREFIX = "Represent this sentence: "  # BGE query instruction prefix
 
 # ===========================
-# ChromaDB
+# ChromaDB Vector Store
+# Canonical: data/chroma_db (with fallback to legacy root chroma_db)
 # ===========================
 
-CHROMA_PATH = "chroma_db"
+_default_chroma = os.path.join("data", "chroma_db")
+if not os.path.exists(_default_chroma) and os.path.exists("chroma_db"):
+    _default_chroma = "chroma_db"
+CHROMA_PATH = os.getenv("CHROMA_PATH", _default_chroma)
 COLLECTION_NAME = "pdf_notes"
 
 # ===========================
-# PDF Storage & Settings
+# Second Brain Storage Directories
+# Canonical: raw/pdfs (inputs) & ctx/sessions (chat interactions)
 # ===========================
 
-PDF_FOLDER = "pdfs"
-CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", "chat_history")
+_default_pdf = os.path.join("raw", "pdfs")
+if not os.path.exists(_default_pdf) and os.path.exists("pdfs"):
+    _default_pdf = "pdfs"
+PDF_FOLDER = os.getenv("PDF_FOLDER", _default_pdf)
+
+_default_chat = os.path.join("ctx", "sessions")
+if not os.path.exists(_default_chat) and os.path.exists("chat_history"):
+    _default_chat = "chat_history"
+CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", _default_chat)
 
 # ===========================
 # Chunk Settings (tuned for BGE's 512-token window)

@@ -7,8 +7,7 @@ import uuid
 import re
 from typing import Any, Optional, Union, List, Dict
 from dataclasses import dataclass, asdict, field
-
-CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", "chat_history")
+from config import CHAT_DIR
 
 
 def _clean_session_title(raw_text: str) -> str:

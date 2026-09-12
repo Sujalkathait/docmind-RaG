@@ -42,10 +42,10 @@ Open your browser to:
 | **Backend REST API** | **FastAPI**, **Starlette**, **Pydantic v2** | High-performance asynchronous API layer with dual trailing-slash routes, Server-Sent Events (SSE) token streaming, and SPA catch-all routing. |
 | **Local LLM Engine** | **`llama-cpp-python`** (C++ ggml runtime) | Offline CPU/GPU GGUF inference (Qwen2.5-3B & SmolLM2-360M) with dynamic token budgeting and ChatML prompt assembly. |
 | **Embeddings** | **`BAAI/bge-small-en-v1.5`** | 384-dimensional dense vector embeddings with instruction prefixes via `sentence-transformers`. |
-| **Vector Database** | **ChromaDB** (`chroma_db/`) | Persistent vector storage utilizing Hierarchical Navigable Small World (HNSW) indexing and folder metadata filtering. |
-| **Document Ingestion** | **PyMuPDF** (`fitz`), **LangChain Splitters** | High-speed PDF text and page extraction with 800-character recursive chunks and 120-character sliding overlaps. |
+| **Vector Database** | **ChromaDB** (`data/chroma_db/`) | Persistent vector storage utilizing Hierarchical Navigable Small World (HNSW) indexing and folder metadata filtering. |
+| **Document Ingestion** | **PyMuPDF** (`fitz`), **LangChain Splitters** | High-speed PDF text and page extraction with 800-character recursive chunks and 100-character sliding overlaps. |
 | **Relational Database** | **SQLite 3** (`WAL` mode) | Stores structured Wiki knowledge nodes, cross-document semantic edges, selective long-term memories, and study deliverables. |
-| **Session Persistence** | **Atomic JSON Filesystem** (`chat_history/`) | Atomic file write-and-replace for conversational persistence, pin toggling, and instant session deletion. |
+| **Session Persistence** | **Atomic JSON Filesystem** (`ctx/sessions/`) | Atomic file write-and-replace for conversational persistence, pin toggling, and instant session deletion. |
 
 ---
 
@@ -186,6 +186,44 @@ RAG PDF CHATBOT/
 ├── download_model.py             # Multi-model downloader helper (Qwen 3B, SmolLM2 360M)
 ├── requirements.txt              # Clean Python dependencies (100% offline, zero API keys)
 │
+├── raw/                          # [Unstructured inputs. Immutable. Ground truth.]
+│   ├── pdfs/                     # Uploaded PDF lecture notes, textbooks, slides
+│   ├── articles/                 # Web & research articles
+│   ├── notes/                    # User scratch notes
+│   ├── extracted/                # Extracted plain text / OCR
+│   └── screenshots/              # Reference diagrams & images
+│
+├── wiki/                         # [Structured knowledge. Linked & cross-referenced.]
+│   ├── index.md                  # Root knowledge graph catalog
+│   ├── concepts/                 # Extracted atomic concepts
+│   ├── entities/                 # Named entities
+│   ├── topics/                   # Subject domain groupings
+│   ├── literature/               # Literature notes & citations
+│   └── permanent-notes/          # Evergreen insights
+│
+├── output/                       # [Generated artifacts. Shareable & versioned.]
+│   ├── notes/                    # Study notes & cheat sheets
+│   ├── summaries/                # Chapter & syllabus summaries
+│   ├── quizzes/                  # Practice exams & flashcards
+│   ├── reports/                  # In-depth synthesis reports
+│   └── documents/                # Formatted markdown deliverables
+│
+├── ctx/                          # [Context & interaction primitives.]
+│   ├── sessions/                 # Chat conversation JSON files
+│   ├── prompts/                  # Prompt templates & guidelines
+│   ├── rules/                    # Grounding & safety rules
+│   └── snippets/                 # Reusable code/text snippets
+│
+├── mem/                          # [Identity & system memory.]
+│   ├── docmind.md                # Second Brain agent persona & rules
+│   ├── preferences/              # User preferences & formatting style
+│   ├── goals/                    # Learning objectives
+│   └── projects/                 # Active project scopes
+│
+├── data/                         # [Persistence Storage Engines]
+│   ├── docmind.db                # SQLite relational database (WAL mode)
+│   └── chroma_db/                # ChromaDB persistent vector database
+│
 ├── backend/                      # Production FastAPI Backend Layer
 │   ├── api/                      # REST API Endpoints
 │   │   ├── main.py               # FastAPI App & SPA static mount
@@ -258,10 +296,7 @@ RAG PDF CHATBOT/
 │   ├── test_api.py               # API routes, deletion lifecycle, and SOLID patterns
 │   └── test_second_brain.py      # Vector search, SQLite CRUD, and memory evaluation
 │
-├── chat_history/                 # Atomic JSON session files
-├── chroma_db/                    # ChromaDB vector index directory
-├── models/                       # GGUF model files (Qwen2.5-3B, SmolLM2-360M)
-└── pdfs/                         # User PDF storage organized by collections
+└── models/                       # GGUF model files (Qwen2.5-3B, SmolLM2-360M)
 ```
 
 ---

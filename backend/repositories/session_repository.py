@@ -16,7 +16,7 @@ from typing import List, Optional, Dict, Any
 try:
     from config import CHAT_DIR
 except ImportError:
-    CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", "chat_history")
+    CHAT_DIR = os.getenv("CHAT_HISTORY_DIR", os.path.join("ctx", "sessions"))
 
 
 class BaseSessionRepository(ABC):

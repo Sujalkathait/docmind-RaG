@@ -11,15 +11,28 @@ secrets.json
 # Local User Data & Vector Database
 # ===================================
 chroma_db/
+data/chroma_db/
 *.chroma
 
 # PDF storage (ignore files, keep folder)
 pdfs/*
 !pdfs/.gitkeep
+raw/pdfs/*
+!raw/pdfs/.gitkeep
+raw/extracted/*
+!raw/extracted/.gitkeep
+raw/articles/*
+!raw/articles/.gitkeep
+raw/screenshots/*
+!raw/screenshots/.gitkeep
+raw/notes/*
+!raw/notes/.gitkeep
 
-# Chat History (ignore session files, keep folder)
+# Chat History & Context Sessions
 chat_history/*
 !chat_history/.gitkeep
+ctx/sessions/*
+!ctx/sessions/.gitkeep
 
 # ===================================
 # Large GGUF Model Files (> 2GB)
@@ -47,16 +60,14 @@ data/*.sqlite3
 *.db
 *.sqlite
 *.sqlite3
-raw/pdfs/*
-!raw/pdfs/.gitkeep
-raw/extracted/*
-!raw/extracted/.gitkeep
-output/*
-!output/.gitkeep
-!output/notes/.gitkeep
-!output/summaries/.gitkeep
-!output/quizzes/.gitkeep
+output/reports/*
 !output/reports/.gitkeep
+output/notes/*
+!output/notes/.gitkeep
+output/summaries/*
+!output/summaries/.gitkeep
+output/quizzes/*
+!output/quizzes/.gitkeep
 
 # ===================================
 # Python & Virtual Environments
