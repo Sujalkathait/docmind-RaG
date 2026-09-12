@@ -1,50 +1,10 @@
 /**
  * DocMind Second Brain API Client
- * Connects React frontend to FastAPI v1 endpoints with SSE streaming and JSON normalization.
- * 100% offline, zero external API keys.
+ * Connects React frontend directly to local FastAPI server on port 8000.
+ * 100% offline, zero external API keys, runs locally.
  */
 
-export const getApiBase = () => {
-  if (typeof window !== 'undefined') {
-    const override = localStorage.getItem('docmind_api_url');
-    if (override) return override.trim().replace(/\/+$/, '');
-  }
-  if (import.meta.env && import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
-  }
-  return '';
-};
-
-export const setApiBase = (url) => {
-  if (typeof window !== 'undefined') {
-    if (url && url.trim()) {
-      localStorage.setItem('docmind_api_url', url.trim().replace(/\/+$/, ''));
-    } else {
-      localStorage.removeItem('docmind_api_url');
-    }
-  }
-};
-
-const API_BASE = {
-  toString() {
-    return getApiBase();
-  },
-};
-
-// Automatically inject bypass headers so Localtunnel and Ngrok do not block API calls with warning pages
-if (typeof window !== 'undefined' && window.fetch) {
-  const originalFetch = window.fetch;
-  window.fetch = function (input, init = {}) {
-    const headers = new Headers(init.headers || {});
-    if (!headers.has('Bypass-Tunnel-Reminder')) {
-      headers.set('Bypass-Tunnel-Reminder', 'true');
-    }
-    if (!headers.has('ngrok-skip-browser-warning')) {
-      headers.set('ngrok-skip-browser-warning', 'true');
-    }
-    return originalFetch.call(this, input, { ...init, headers });
-  };
-}
+const API_BASE = '';
 
 export const api = {
   // System Health & Local Model Telemetry
