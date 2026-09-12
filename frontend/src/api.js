@@ -31,6 +31,21 @@ const API_BASE = {
   },
 };
 
+// Automatically inject bypass headers so Localtunnel and Ngrok do not block API calls with warning pages
+if (typeof window !== 'undefined' && window.fetch) {
+  const originalFetch = window.fetch;
+  window.fetch = function (input, init = {}) {
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('Bypass-Tunnel-Reminder')) {
+      headers.set('Bypass-Tunnel-Reminder', 'true');
+    }
+    if (!headers.has('ngrok-skip-browser-warning')) {
+      headers.set('ngrok-skip-browser-warning', 'true');
+    }
+    return originalFetch.call(this, input, { ...init, headers });
+  };
+}
+
 export const api = {
   // System Health & Local Model Telemetry
   async getHealth() {
