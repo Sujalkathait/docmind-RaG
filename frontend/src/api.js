@@ -4,7 +4,32 @@
  * 100% offline, zero external API keys.
  */
 
-const API_BASE = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : '';
+export const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    const override = localStorage.getItem('docmind_api_url');
+    if (override) return override.trim().replace(/\/+$/, '');
+  }
+  if (import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
+  }
+  return '';
+};
+
+export const setApiBase = (url) => {
+  if (typeof window !== 'undefined') {
+    if (url && url.trim()) {
+      localStorage.setItem('docmind_api_url', url.trim().replace(/\/+$/, ''));
+    } else {
+      localStorage.removeItem('docmind_api_url');
+    }
+  }
+};
+
+const API_BASE = {
+  toString() {
+    return getApiBase();
+  },
+};
 
 export const api = {
   // System Health & Local Model Telemetry
